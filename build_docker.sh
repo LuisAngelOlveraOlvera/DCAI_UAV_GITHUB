@@ -72,6 +72,8 @@ else
     echo "Ejemplo:"
     echo "  docker run --rm -v \"\$(pwd)\":/dataset ${IMAGE_NAME} python scripts/01_check_db_status.py"
 fi
+echo "Preparar dataset Kaggle:"
+echo "  docker run --rm -v \"\$(pwd)\":/dataset ${IMAGE_NAME} python scripts/00_dataset_setup.py"
 
 echo ""
 echo "=================================="

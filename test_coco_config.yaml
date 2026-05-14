@@ -1,0 +1,6 @@
+names:
+  0: person
+path: C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\IRINA\IRINA\irnia
+test: images
+train: images
+val: images

@@ -6,9 +6,22 @@ Repositorio para validacion de metodologia Data-Centric AI (DCAI) en deteccion d
 
 ```text
 DATASET_TESIS/
-|-- images/                  # Imagenes crudas
-|-- labels/                  # Etiquetas YOLO
+|-- DATASET_KAGGLE/
+|   |-- PASCAL_VOC_UAQ_MSUAV/
+|   |   |-- images/          # Imagenes base para las primeras etapas
+|   |   `-- labels/          # Etiquetas YOLO base
+|   |-- EVALUATION/
+|   |   |-- COCO_TEST/
+|   |   |-- IRINA/
+|   |   |-- MANIPAL_UAV/
+|   |   |-- NTUT/
+|   |   |-- UAQ_MSUAV_TEST/
+|   |   `-- VISDRONE/
+|   `-- evaluation_videos/
+|       |-- VIDEO_1/
+|       `-- VIDEO_2/
 |-- scripts/
+|   |-- 00_dataset_setup.py
 |   |-- config.py
 |   |-- config_analysis.py
 |   |-- 01_check_db_status.py
@@ -24,6 +37,46 @@ DATASET_TESIS/
 |-- dataset_master.sqlite
 `-- analysis_metadata.sqlite
 ```
+
+## Preparacion del dataset Kaggle
+
+El dataset fuente se descarga desde Kaggle con `scripts/00_dataset_setup.py`:
+
+```bash
+python scripts/00_dataset_setup.py
+```
+
+El script usa `kagglehub`, `os`, `shutil` y `Path` para descargar el dataset
+`luisngeld/person-detection-uav-pascal-voc-uaq-msuav` y normalizarlo dentro de
+`DATASET_KAGGLE`. Si tu red requiere desactivar verificacion SSL para Kaggle,
+ejecuta con `KAGGLE_INSECURE_SSL=1`.
+
+Rutas relativas esperadas despues de preparar el dataset:
+
+```text
+DATASET_KAGGLE\evaluation_videos\VIDEO_1
+DATASET_KAGGLE\evaluation_videos\VIDEO_2
+
+DATASET_KAGGLE\EVALUATION\COCO_TEST\images
+DATASET_KAGGLE\EVALUATION\COCO_TEST\labels
+DATASET_KAGGLE\EVALUATION\IRINA\images
+DATASET_KAGGLE\EVALUATION\IRINA\labels
+DATASET_KAGGLE\EVALUATION\MANIPAL_UAV\images
+DATASET_KAGGLE\EVALUATION\MANIPAL_UAV\labels
+DATASET_KAGGLE\EVALUATION\NTUT\images
+DATASET_KAGGLE\EVALUATION\NTUT\labels
+DATASET_KAGGLE\EVALUATION\UAQ_MSUAV_TEST\images
+DATASET_KAGGLE\EVALUATION\UAQ_MSUAV_TEST\labels
+DATASET_KAGGLE\EVALUATION\VISDRONE\images
+DATASET_KAGGLE\EVALUATION\VISDRONE\labels
+
+DATASET_KAGGLE\PASCAL_VOC_UAQ_MSUAV\images
+DATASET_KAGGLE\PASCAL_VOC_UAQ_MSUAV\labels
+```
+
+`scripts/config.py` toma las imagenes y labels base desde
+`DATASET_KAGGLE/PASCAL_VOC_UAQ_MSUAV/`, y los scripts de evaluacion externa usan
+`DATASET_KAGGLE/EVALUATION/`.
 
 ## Convenciones DoE
 
@@ -49,6 +102,11 @@ DATASET_TESIS/
 ## Flujo recomendado
 
 ### Core pipeline
+
+0. Preparar estructura Kaggle si `DATASET_KAGGLE/PASCAL_VOC_UAQ_MSUAV` no existe:
+```bash
+python scripts/00_dataset_setup.py
+```
 
 1. Chequeo rapido del estado de bases:
 ```bash

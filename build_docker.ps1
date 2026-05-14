@@ -83,6 +83,8 @@ else {
     Write-Host "Ejemplo:" -ForegroundColor Cyan
     Write-Host "  docker run --rm -v `"`${PWD}:/dataset`" $IMAGE_NAME python scripts/01_check_db_status.py" -ForegroundColor Gray
 }
+Write-Host "Preparar dataset Kaggle:" -ForegroundColor Cyan
+Write-Host "  docker run --rm -v `"`${PWD}:/dataset`" $IMAGE_NAME python scripts/00_dataset_setup.py" -ForegroundColor Gray
 
 Write-Host ""
 Write-Host "==================================" -ForegroundColor Cyan

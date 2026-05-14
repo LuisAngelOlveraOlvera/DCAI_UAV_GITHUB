@@ -1,5 +1,59 @@
 # Log History
 
+## 2026-05-14
+
+### Integracion de dataset Kaggle y estandarizacion Docker/README
+
+- `requirements.txt` actualizado para incluir dependencias del setup de Kaggle:
+- `kagglehub==0.3.4`
+- `requests==2.32.3`
+- `urllib3==2.2.3`
+- `dataset_setup.py` fue movido a `scripts/00_dataset_setup.py` y renombrado como paso `00` del flujo operativo.
+- `scripts/00_dataset_setup.py` creado como paso `00` para descargar y reorganizar el dataset
+  `luisngeld/person-detection-uav-pascal-voc-uaq-msuav` dentro de `DATASET_KAGGLE/`.
+- La estructura objetivo documentada y generada por el setup queda alineada a:
+- `DATASET_KAGGLE/PASCAL_VOC_UAQ_MSUAV/images`
+- `DATASET_KAGGLE/PASCAL_VOC_UAQ_MSUAV/labels`
+- `DATASET_KAGGLE/EVALUATION/{COCO_TEST,IRINA,MANIPAL_UAV,NTUT,UAQ_MSUAV_TEST,VISDRONE}/{images,labels}`
+- `DATASET_KAGGLE/evaluation_videos/VIDEO_1`
+- `DATASET_KAGGLE/evaluation_videos/VIDEO_2`
+
+### Alineacion de rutas del pipeline
+
+- `scripts/config.py` actualizado para que las primeras etapas del repo lean desde:
+- `DATASET_KAGGLE/PASCAL_VOC_UAQ_MSUAV/images`
+- `DATASET_KAGGLE/PASCAL_VOC_UAQ_MSUAV/labels`
+- Se agregaron rutas explicitas:
+- `TRAINING_DATASET_DIR`
+- `EVALUATION_DATASET_DIR`
+- `EVALUATION_VIDEOS_DIR`
+- `scripts/16_evaluar_coco_persona.py` migrado para usar `config.EVALUATION_DATASET_DIR`.
+- `scripts/19_doe_r4_final.py` migrado para usar `config.EVALUATION_DATASET_DIR`.
+- `scripts/23_evaluar_coco_distancia.py` migrado para usar `config.EVALUATION_DATASET_DIR`.
+
+### Docker y documentacion sincronizados
+
+- `docker_dataset.dockerfile` actualizado para instalar `ca-certificates` y seguir resolviendo dependencias desde `requirements.txt`.
+- `build_docker.sh` y `build_docker.ps1` actualizados para mostrar el comando de preparacion:
+- `python scripts/00_dataset_setup.py`
+- `README.md` ampliado con:
+- flujo de descarga Kaggle;
+- rutas relativas esperadas;
+- nota explicita de que el pipeline base usa `PASCAL_VOC_UAQ_MSUAV` y las evaluaciones usan `EVALUATION`.
+- `DOCKER_README.md` estandarizado contra `README.md` con la misma estructura Kaggle, el mismo paso de preparacion y ejemplos Docker equivalentes.
+- `DOCKER_README.md` corregido para referenciar `fix_permission.sh` (nombre real del script) en lugar de `fix_permissions.sh`.
+
+### Verificacion
+
+- Se valido compilacion con `py_compile` para:
+- `scripts/00_dataset_setup.py`
+- `scripts/config.py`
+- `scripts/16_evaluar_coco_persona.py`
+- `scripts/19_doe_r4_final.py`
+- `scripts/23_evaluar_coco_distancia.py`
+- Se confirmo que la configuracion actual ya resuelve a las nuevas rutas bajo `DATASET_KAGGLE/`.
+- Se detecto que el workspace todavia conserva la estructura fisica antigua `DATASET_KAGGLE/images` y `DATASET_KAGGLE/labels`; la estructura nueva se materializa al ejecutar `python scripts/00_dataset_setup.py`.
+
 ## 2026-05-11
 
 ### Renumeracion canonica de scripts

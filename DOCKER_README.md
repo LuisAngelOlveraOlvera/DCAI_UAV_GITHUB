@@ -8,10 +8,11 @@ Documentación completa para trabajar con Docker en el proyecto de validación D
 
 1. [Instalación](#-instalación)
 2. [Build Inteligente GPU/CPU](#-build-inteligente-gpucpu)
-3. [Ciclo de Trabajo](#-ciclo-de-trabajo)
-4. [Comandos por Script](#-comandos-por-script)
-5. [Depuración](#-depuración)
-6. [Troubleshooting](#-troubleshooting)
+3. [Preparacion del Dataset Kaggle](#preparacion-del-dataset-kaggle)
+4. [Ciclo de Trabajo](#-ciclo-de-trabajo)
+5. [Comandos por Script](#-comandos-por-script)
+6. [Depuración](#-depuración)
+7. [Troubleshooting](#-troubleshooting)
 
 ---
 
@@ -139,16 +140,74 @@ docker build --no-cache -f docker_dataset.dockerfile --build-arg PYTHON_VERSION=
 
 ---
 
+## Preparacion del Dataset Kaggle
+
+El repositorio incluye `scripts/00_dataset_setup.py`. La imagen Docker instala las
+dependencias desde `requirements.txt`, incluyendo `kagglehub`, `requests` y
+`urllib3`, por lo que el setup puede ejecutarse localmente o dentro del
+contenedor.
+
+### Local
+
+```bash
+python scripts/00_dataset_setup.py
+```
+
+### Docker Linux/Mac
+
+```bash
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/00_dataset_setup.py
+```
+
+### Docker Windows PowerShell
+
+```powershell
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/00_dataset_setup.py
+```
+
+Si Kaggle solicita credenciales, coloca `kaggle.json` en `~/.kaggle` en local o
+monta esa carpeta en el contenedor. Si tu red requiere desactivar verificacion
+SSL, agrega `-e KAGGLE_INSECURE_SSL=1`.
+
+Estructura relativa esperada:
+
+```text
+DATASET_KAGGLE\evaluation_videos\VIDEO_1
+DATASET_KAGGLE\evaluation_videos\VIDEO_2
+
+DATASET_KAGGLE\EVALUATION\COCO_TEST\images
+DATASET_KAGGLE\EVALUATION\COCO_TEST\labels
+DATASET_KAGGLE\EVALUATION\IRINA\images
+DATASET_KAGGLE\EVALUATION\IRINA\labels
+DATASET_KAGGLE\EVALUATION\MANIPAL_UAV\images
+DATASET_KAGGLE\EVALUATION\MANIPAL_UAV\labels
+DATASET_KAGGLE\EVALUATION\NTUT\images
+DATASET_KAGGLE\EVALUATION\NTUT\labels
+DATASET_KAGGLE\EVALUATION\UAQ_MSUAV_TEST\images
+DATASET_KAGGLE\EVALUATION\UAQ_MSUAV_TEST\labels
+DATASET_KAGGLE\EVALUATION\VISDRONE\images
+DATASET_KAGGLE\EVALUATION\VISDRONE\labels
+
+DATASET_KAGGLE\PASCAL_VOC_UAQ_MSUAV\images
+DATASET_KAGGLE\PASCAL_VOC_UAQ_MSUAV\labels
+```
+
+Esta estructura coincide con `README.md`: las primeras etapas del repo leen
+`DATASET_KAGGLE/PASCAL_VOC_UAQ_MSUAV/images` y `labels`, y las evaluaciones
+externas leen `DATASET_KAGGLE/EVALUATION`.
+
+---
+
 ## Ciclo de Trabajo
 
 ### Flujo Típico
 
 ```
-1. Editar archivo .py en tu editor favorito
-2. Guardar cambios
-3. Ejecutar comando docker run correspondiente
-4. Revisar resultados en tu carpeta (gracias al volumen -v)
-5. Repetir
+1. Construir la imagen con `./build_docker.sh auto` o `.\build_docker.ps1 auto`
+2. Preparar `DATASET_KAGGLE` con `python scripts/00_dataset_setup.py`
+3. Ejecutar `scripts/01_check_db_status.py`
+4. Correr el pipeline o el script Docker correspondiente
+5. Revisar resultados en `exports/`, `logs/` y `runs/`
 ```
 
 ### Verificación Inicial (SIEMPRE PRIMERO)
@@ -165,12 +224,298 @@ docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/01_check_db
 
 ---
 
+## Flujo recomendado
+
+### Core pipeline
+
+0. Preparar estructura Kaggle si `DATASET_KAGGLE/PASCAL_VOC_UAQ_MSUAV` no existe:
+```bash
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/00_dataset_setup.py
+```
+
+1. Chequeo rapido del estado de bases:
+```bash
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/01_check_db_status.py
+```
+
+2. Ingesta analitica:
+```bash
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/02_analysis_etl.py
+Salida: analysis_metadata.sqlite
+IMPORTANTE: SE TIENE QUE VOLVER A EJECUTAR TERMINANDO 02_analysis_etl.py
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/01_check_db_status.py
+```
+
+3. Reporte de duplicados Hamming por fuente (opcional):
+```bash
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/03_hamming_source_report.py
+Salida: hamming_source_report.csv
+```
+
+4. ETL maestro (dataset fisico y anotaciones):
+```bash
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/04_etl_ingestion.py
+IMPORTANTE: SE TIENE QUE VOLVER A EJECUTAR TERMINANDO 02_analysis_etl.py
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/01_check_db_status.py
+```
+
+5. Validacion de integridad del dataset maestro:
+```bash
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/05_validar_integridad.py
+```
+
+6. Exportacion multi-formato de anotaciones (opcional):
+```bash
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/06_exportar_anotacion.py
+Salida: Carpetas con diferentes formatos de frameworks
+```
+
+7. Juez one-pass (inferencia + scoring + QA semantico):
+```bash
+docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python scripts/07_judge_scoring.py
+Salida: dataset_master.sqlite
+```
+
+8. Sync QA (sin reinferencia, copia `label_issue` a `dataset_master.sqlite`):
+```bash
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/08_qa_audit.py
+Salida: audit_details.csv
+```
+
+9. Inspeccion visual de bad labels / poor alignment (opcional):
+```bash
+docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python scripts/09_analysis_bad_labels.py
+Salida: Reporte interactivo de defectos bad labels, dedup_phash, poor_alignment, weak
+```
+
+10. Validacion humana del auditor (opcional, por fases):
+```bash
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/10_human_validation_audit.py prepare
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/10_human_validation_audit.py review --annotator-id A1
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/10_human_validation_audit.py score --expected-annotators 3
+salida: \human_validation_consensus.csv, \human_validation_pairwise_kappa.csv, \human_validation_metrics_summary.csv, \human_validation_metrics_per_class.csv, \human_validation_metrics_breakdown.csv
+```
+
+11. Simulacion DoE (tabla de impacto) a diferentes niveles de Phash:
+```bash
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/11_scenario_simulator.py
+Salida: reporte_analisis_escenarios.csv
+```
+
+12. Reporte analitico de base / QA / Judge (opcional):
+```bash
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/12_db_analysis_report.py
+Salida: db_analysis_report.csv, \exports\db_threshold_breakdown.csv
+```
+
+13. Generacion fisica de datasets DoE:
+```bash
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/13_dataset_generation.py
+```
+
+14. Validacion fisica de escenarios:
+```bash
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/14_validation_report.py
+```
+
+15. Entrenamiento:
+```bash
+docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python scripts/15_training.py
+Salida - ejecuta los entrenamientos, es un menu interactivo
+```
+
+16. Evaluacion:
+```bash
+docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python scripts/16_evaluar_coco_persona.py
+```
+
+### Seleccion R0-R3 y confirmacion R4
+
+17. Seleccion reducida R0-R3:
+```bash
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/17_doe_pipeline_reduced.py
+```
+
+18. Entrenamiento confirmatorio multi-seed:
+```bash
+docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python scripts/18_train_seed_confirm.py
+IMPORTANTE: LOS R4_FINALISTS DE LA LINEA 40 - 48 SE TIENEN QUE COLOCAR DE FORMA MANUAL BASADO EN LOS RESULTAODS DE 17_doe_pipeline_reduced.py
+```
+
+19. Seleccion final R4:
+```bash
+docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python scripts/19_doe_r4_final.py
+IMPORTANTE: LOS R4_FINALISTS DE LA LINEA 48 - 54 SE TIENEN QUE COLOCAR DE FORMA MANUAL BASADO EN LOS RESULTAODS DE 17_doe_pipeline_reduced.py
+```
+
+20. Graficas de momentos por seed:
+```bash
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/20_plot_r4_seed_moments.py
+```
+
+21. Estadistica confirmatoria R4:
+```bash
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/21_r4_confirmatory_stats.py
+```
+
+22. Tukey HSD + Shapiro-Wilk:
+```bash
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/22_r4_tukey_shapiro.py
+```
+
+23. Evaluacion por distancia:
+```bash
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/23_evaluar_coco_distancia.py
+```
+
+24. Analisis de degradacion por distancia:
+```bash
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/24_distance_degradation_r4.py
+```
+
+## Validacion humana del auditor
+
+Flujo recomendado para validar el modelo juez con anotadores humanos:
+
+1. Preparar la muestra humana y exportar plantillas:
+```bash
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/10_human_validation_audit.py prepare
+```
+
+Comportamiento por defecto de `prepare`:
+
+- incluye todos los errores detectados por el juez (`missing_label`, `bad_label`, `poor_alignment`)
+- agrega `250` casos `ok` estratificados
+- deja una muestra lista para validacion humana con ~`586` imagenes en el estado actual de la BD
+
+Si quieres volver al muestreo mixto anterior:
+```bash
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/10_human_validation_audit.py prepare --strategy mixed_stratified --sample-size 600
+```
+
+2. Revisar imagen por imagen como anotador A1:
+```bash
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/10_human_validation_audit.py review --annotator-id A1
+```
+
+3. Revisar imagen por imagen como anotador A2:
+```bash
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/10_human_validation_audit.py review --annotator-id A2
+```
+
+4. Revisar imagen por imagen como anotador A3:
+```bash
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/10_human_validation_audit.py review --annotator-id A3
+```
+
+Teclas del modo interactivo:
+
+- `1`: `ok`
+- `2`: `missing_label`
+- `3`: `bad_label`
+- `4`: `poor_alignment`
+- `5`: `ambiguous`
+- `s` o `espacio`: saltar muestra
+- `q` o `Esc`: guardar y salir
+
+5. Calcular consenso humano y estadisticas finales:
+```bash
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/10_human_validation_audit.py score --expected-annotators 3
+```
+
+Salidas principales:
+
+- `exports/human_validation_audit/human_validation_sample_master.csv`
+- `exports/human_validation_audit/human_validation_annotator_A*.csv`
+- `exports/human_validation_audit/human_validation_consensus.csv`
+- `exports/human_validation_audit/human_validation_metrics_summary.csv`
+- `exports/human_validation_audit/human_validation_pairwise_kappa.csv`
+
+## Entrenamiento fijo (protocolo)
+
+- Modelo: `yolo11n.pt`
+- `epochs=100`
+- `batch=8`
+- `imgsz=640`
+- `workers=4`
+- `seed=0` (recomendado para reproducibilidad)
+- `patience=15` (early stopping)
+
+## Notas
+
+- `13_dataset_generation.py` usa deduplicacion por similitud (Hamming), no por hash exacto.
+- `13_dataset_generation.py` excluye ruido semantico (`missing_label`, `bad_label`, `poor_alignment`) antes de construir datasets.
+- `07_judge_scoring.py` ejecuta una sola pasada del juez y guarda `judge_score` + `label_issue` en `analysis_metadata.sqlite`.
+- `08_qa_audit.py` ya no infiere; solo sincroniza resultados QA a `dataset_master.sqlite` y valida `% unknown`.
+- `11_scenario_simulator.py` y `12_db_analysis_report.py` usan `analysis_images.label_issue` cuando existe.
+- `12_db_analysis_report.py` calcula `Injected` sobre `Train Base` (igual que `13_dataset_generation.py`), no sobre el total limpio.
+- `config_analysis.py` mantiene compatibilidad con scripts legacy via `use_pascal` y `use_propio`.
+
+## Como ejecutar training seed
+
+Eso corre con defaults:
+
+```text
+--model n
+--epochs 100
+--seeds 7 42 123 999
+```
+
+Ahora, combinaciones utiles:
+
+```bash
+docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python .\scripts\18_train_seed_confirm.py --dry_run
+```
+Muestra el plan sin entrenar.
+
+```bash
+docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python .\scripts\18_train_seed_confirm.py --model n --epochs 100 --seeds 7 42 123 999
+```
+Ejecucion completa explicita.
+
+```bash
+docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python .\scripts\18_train_seed_confirm.py --model n --epochs 50 --seeds 42
+```
+Una sola seed, mas rapido.
+
+```bash
+docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python .\scripts\18_train_seed_confirm.py --model n --epochs 50 --seeds 42 123
+```
+Confirmacion ligera con dos seeds.
+
+```bash
+docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python .\scripts\18_train_seed_confirm.py --model s --epochs 100 --seeds 7 42 123 999
+```
+Version con yolo11s.pt.
+
+```bash
+docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python .\scripts\18_train_seed_confirm.py --model m --epochs 100 --seeds 42 123
+```
+Mas pesado; el script baja batch a 4 si detecta m.
+
+```bash
+docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python .\scripts\18_train_seed_confirm.py --only_missing
+```
+Solo corre los run_dir que todavia no existan.
+
+```bash
+docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python .\scripts\18_train_seed_confirm.py --only_missing --model n --epochs 100 --seeds 7 42 123 999
+```
+Muy util si se interrumpio una corrida.
+
+```bash
+docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python .\scripts\18_train_seed_confirm.py --dry_run --only_missing --model n --epochs 100 --seeds 42 123
+```
+
+---
+
 ## Comandos por Script
 
 ### Linux/Mac (Bash/ZSH)
 
 | Paso | Script | Comando |
 |------|--------|---------|
+| `00` | `00_dataset_setup.py` | `docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/00_dataset_setup.py` |
 | `01` | `01_check_db_status.py` | `docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/01_check_db_status.py` |
 | `02` | `02_analysis_etl.py` | `docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/02_analysis_etl.py` |
 | `03` | `03_hamming_source_report.py` | `docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/03_hamming_source_report.py` |
@@ -193,12 +538,14 @@ docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/01_check_db
 | `20` | `20_plot_r4_seed_moments.py` | `docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/20_plot_r4_seed_moments.py` |
 | `21` | `21_r4_confirmatory_stats.py` | `docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/21_r4_confirmatory_stats.py` |
 | `22` | `22_r4_tukey_shapiro.py` | `docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/22_r4_tukey_shapiro.py` |
-| `23` | `23_distance_degradation_r4.py` | `docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/23_distance_degradation_r4.py` |
+| `23` | `23_evaluar_coco_distancia.py` | `docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/23_evaluar_coco_distancia.py` |
+| `24` | `24_distance_degradation_r4.py` | `docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/24_distance_degradation_r4.py` |
 
 ### Windows (PowerShell)
 
 | Paso | Script | Comando |
 |------|--------|---------|
+| `00` | `00_dataset_setup.py` | `docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/00_dataset_setup.py` |
 | `01` | `01_check_db_status.py` | `docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/01_check_db_status.py` |
 | `02` | `02_analysis_etl.py` | `docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/02_analysis_etl.py` |
 | `03` | `03_hamming_source_report.py` | `docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/03_hamming_source_report.py` |
@@ -221,7 +568,8 @@ docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/01_check_db
 | `20` | `20_plot_r4_seed_moments.py` | `docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/20_plot_r4_seed_moments.py` |
 | `21` | `21_r4_confirmatory_stats.py` | `docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/21_r4_confirmatory_stats.py` |
 | `22` | `22_r4_tukey_shapiro.py` | `docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/22_r4_tukey_shapiro.py` |
-| `23` | `23_distance_degradation_r4.py` | `docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/23_distance_degradation_r4.py` |
+| `23` | `23_evaluar_coco_distancia.py` | `docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/23_evaluar_coco_distancia.py` |
+| `24` | `24_distance_degradation_r4.py` | `docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/24_distance_degradation_r4.py` |
 
 ### Notas sobre los Comandos
 
@@ -308,8 +656,8 @@ docker rmi -f validador-imagen  # Forzar borrado
 
 **Solución Rápida (Linux/Mac)**:
 ```bash
-chmod +x fix_permissions.sh
-./fix_permissions.sh
+chmod +x fix_permission.sh
+./fix_permission.sh
 ```
 
 **Solución Manual (Linux/Mac)**:

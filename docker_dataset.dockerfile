@@ -22,6 +22,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 WORKDIR /dataset
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
     git \
     libgl1 \
     libglib2.0-0 \
@@ -40,8 +41,13 @@ COPY requirements.txt /tmp/requirements.txt
 FROM base AS final-cpu
 
 RUN python -m pip install \
-    torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 \
-    --index-url https://download.pytorch.org/whl/cpu
+    --trusted-host download.pytorch.org \
+    --trusted-host download-r2.pytorch.org \
+    --trusted-host pypi.org \
+    --trusted-host files.pythonhosted.org \
+    --extra-index-url https://download.pytorch.org/whl/cpu \
+    torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1
+
 
 RUN python -m pip install -r /tmp/requirements.txt
 

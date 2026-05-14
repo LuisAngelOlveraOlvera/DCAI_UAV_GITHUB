@@ -26,10 +26,10 @@ import utils
 # ============================================================
 
 # CSV que contiene la relación Nombre -> Distancia
-CSV_PATH = config.DATASET_ROOT / "EVALUATION" / "UAQ_MSUAV_TEST" / "lista_archivos.csv"
+CSV_PATH = config.EVALUATION_DATASET_DIR / "UAQ_MSUAV_TEST" / "lista_archivos.csv"
 
 # Directorio donde están REALMENTE las imágenes en Windows
-TEST_IMAGES_DIR = config.DATASET_ROOT / "EVALUATION" / "UAQ_MSUAV_TEST" / "images"
+TEST_IMAGES_DIR = config.EVALUATION_DATASET_DIR / "UAQ_MSUAV_TEST" / "images"
 
 DISTANCES = [5, 10, 15, 20, 25]
 
