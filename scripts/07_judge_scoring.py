@@ -170,8 +170,13 @@ def run_judge_onepass():
     logger.info(f"IOU_THRESHOLD={iou_threshold} | CONF_THRESHOLD={config.CONF_THRESHOLD}")
 
     model_path = Path(config_analysis.MODEL_JUDGE_PATH)
-    if not model_path.exists():
-        model_path = Path("yolo11x.pt")
+    model_candidates = [
+        model_path,
+        config.DATASET_ROOT / model_path,
+        config.DATASET_ROOT / "yolo11x.pt",
+        Path("yolo11x.pt"),
+    ]
+    model_path = next((p for p in model_candidates if p.exists()), model_path)
 
     try:
         model = YOLO(str(model_path))

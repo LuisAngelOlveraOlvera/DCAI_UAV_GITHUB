@@ -78,6 +78,46 @@ DATASET_KAGGLE\PASCAL_VOC_UAQ_MSUAV\labels
 `DATASET_KAGGLE/PASCAL_VOC_UAQ_MSUAV/`, y los scripts de evaluacion externa usan
 `DATASET_KAGGLE/EVALUATION/`.
 
+## Higiene de Git y Docker
+
+El dataset, modelos, videos, logs y resultados de entrenamiento son artefactos locales.
+No deben versionarse ni copiarse al contexto de build de Docker. Para eso se usan dos
+archivos distintos:
+
+- `.gitignore`: evita que Git agregue datasets, pesos, bases SQLite, logs, exports,
+  runs, videos, comprimidos y ambientes virtuales al historial.
+- `.dockerignore`: evita que `docker build` envie `.git`, datasets, modelos, logs,
+  resultados y caches al daemon de Docker.
+
+Esto es importante porque el repositorio puede parecer muy grande aunque el codigo sea
+pequeno. En este proyecto se detecto un caso donde `.git/objects` crecio a ~16.5 GB y
+`DATASET_KAGGLE/` ocupaba ~16.3 GB.
+
+Diagnostico rapido en Windows/PowerShell:
+
+```powershell
+git count-objects -vH
+
+Get-ChildItem -Force |
+  Sort-Object Length -Descending |
+  Select-Object Mode, Length, Name
+
+Get-ChildItem -Force .git\objects -Recurse -File |
+  Measure-Object Length -Sum
+```
+
+Limpieza de objetos Git no alcanzables:
+
+```powershell
+git gc --prune=now
+git count-objects -vH
+```
+
+Si Windows no permite borrar un archivo viejo en `.git/objects/pack`, cierra procesos
+que puedan bloquearlo, por ejemplo OneDrive, VS Code, Docker Desktop, Explorer o el
+antivirus. Despues repite `git gc --prune=now` o borra manualmente el pack viejo solo
+si ya confirmaste que Git quedo funcional.
+
 ## Convenciones DoE
 
 - `DEDUP`: pHash con distancia de Hamming `<= 10` (`config.HAMMING_THRESHOLD`).
@@ -100,6 +140,48 @@ DATASET_KAGGLE\PASCAL_VOC_UAQ_MSUAV\labels
 - Incluye campos de control: dominio, deduplicacion pHash, `tau` del Judge, `noise %`, TL y si construye dataset fisico.
 
 ## Flujo recomendado
+
+### Paso previo para scripts con ventanas interactivas en Docker
+
+Algunos scripts abren ventanas interactivas con OpenCV/Qt o Matplotlib, por ejemplo
+`cv2.imshow()`, `cv2.waitKey()` o `plt.show()`. Docker no tiene pantalla propia, por lo
+que antes de ejecutarlos dentro del contenedor hay que redirigir la salida grafica hacia
+el sistema host.
+
+Este paso aplica especialmente a `scripts/09_analysis_bad_labels.py`.
+
+En Windows:
+
+- Instalar y abrir XLaunch/VcXsrv antes de ejecutar el contenedor.
+- Configurar XLaunch con:
+- `Multiple windows`
+- `Start no client`
+- `Disable access control` activado
+- Ejecutar el contenedor con `DISPLAY=host.docker.internal:0.0` y `QT_X11_NO_MITSHM=1`.
+
+```powershell
+docker run --rm -it `
+  -v "${PWD}:/dataset" `
+  -e DISPLAY=host.docker.internal:0.0 `
+  -e QT_X11_NO_MITSHM=1 `
+  validador-imagen `
+  python scripts/09_analysis_bad_labels.py
+```
+
+En Linux/Ubuntu:
+
+- Permitir acceso local de Docker al servidor X con `xhost +local:docker`.
+- Montar el socket X11 `/tmp/.X11-unix` y pasar `DISPLAY=$DISPLAY` al contenedor.
+
+```bash
+xhost +local:docker
+
+docker run --rm -it \
+  -v "$(pwd)":/dataset \
+  -v /tmp/.X11-unix:/tmp/.X11-unix \
+  -e DISPLAY=$DISPLAY \
+  validador-imagen python scripts/09_analysis_bad_labels.py
+```
 
 ### Core pipeline
 
@@ -188,6 +270,13 @@ Salida: db_analysis_report.csv, \exports\db_threshold_breakdown.csv
 python scripts/13_dataset_generation.py
 ```
 
+Para construir solo escenarios especificos:
+```bash
+python scripts/13_dataset_generation.py --scenarios N2
+python scripts/13_dataset_generation.py --scenarios N2_B_Raw_0
+python scripts/13_dataset_generation.py --scenarios N2_B_Raw_0 N3_H_Raw_0
+```
+
 14. Validacion fisica de escenarios:
 ```bash
 python scripts/14_validation_report.py
@@ -195,14 +284,34 @@ python scripts/14_validation_report.py
 
 15. Entrenamiento:
 ```bash
+python scripts/15_training.py --datasets all --model n --epochs 100 --yes
+Salida - ejecuta los entrenamientos secuencialmente sin menu interactivo.
+
+Para usar el menu interactivo:
+
 python scripts/15_training.py
-Salida - ejecuta los entrenamientos, es un menú interactivo
 ```
 
 16. Evaluacion:
 ```bash
+python scripts/16_evaluar_coco_persona.py --datasets all --weights all
+
+python scripts/16_evaluar_coco_persona.py --list-datasets
+python scripts/16_evaluar_coco_persona.py --list-weights
+
+
+Para elegir datasets de evaluacion y pesos por menu:
+
 python scripts/16_evaluar_coco_persona.py
+
+Para evaluar solo algunos datasets con pesos especificos:
+
+python scripts/16_evaluar_coco_persona.py --datasets COCO_TEST VISDRONE --weights N1_YOLO11n N2_B_Raw_0_yolo11n_e100
 ```
+
+Nota: `16_evaluar_coco_persona.py` genera YAML temporales con rutas absolutas calculadas
+en runtime. Esto evita que Ultralytics reinterprete rutas relativas bajo su
+`datasets_dir` interno, por ejemplo `/dataset/datasets` dentro de Docker.
 
 ### Seleccion R0-R3 y confirmacion R4
 
@@ -213,13 +322,26 @@ python scripts/17_doe_pipeline_reduced.py
 
 18. Entrenamiento confirmatorio multi-seed:
 ```bash
-python scripts/18_train_seed_confirm.py
+python scripts/18_train_seed_confirm.py --only_missing --model n --epochs 100 --seeds 7 42 123 999
 IMPORTANTE: LOS R4_FINALISTS DE LA LÍNEA 40 - 48 SE TIENEN QUE COLOCAR DE FORMA MANUAL BASADO EN LOS RESULTAODS DE 17_doe_pipeline_reduced.py
 ```
 
 19. Seleccion final R4:
 ```bash
 python scripts/19_doe_r4_final.py
+
+# Listar datasets disponibles para la evaluacion R4
+python scripts/19_doe_r4_final.py --list-datasets
+
+# Evaluar solo algunos datasets especificos
+python scripts/19_doe_r4_final.py --datasets VISDRONE NTUT COCO_TEST
+
+# Tambien acepta indices del menu o 'all'
+python scripts/19_doe_r4_final.py --datasets 1 5 2
+python scripts/19_doe_r4_final.py --datasets all
+
+Sin argumentos, si ejecutas desde terminal interactiva, el script muestra un menu para
+elegir los datasets donde se evalua R4.
 IMPORTANTE: LOS R4_FINALISTS DE LA LÍNEA 48 - 54 SE TIENEN QUE COLOCAR DE FORMA MANUAL BASADO EN LOS RESULTAODS DE 17_doe_pipeline_reduced.py
 ```
 
@@ -241,11 +363,40 @@ python scripts/22_r4_tukey_shapiro.py
 23. Evaluación por distancia:
 ```bash
 python scripts/23_evaluar_coco_distancia.py
+
+# Listar escenarios disponibles
+python scripts/23_evaluar_coco_distancia.py --list-scenarios
+
+# Evaluar solo algunos escenarios por alias N#
+python scripts/23_evaluar_coco_distancia.py --scenarios N1 N7 N11
+
+# Evaluar por nombre completo, indices o 'all'
+python scripts/23_evaluar_coco_distancia.py --scenarios N1_YOLO11n N2_B_Raw_0_yolo11n_e100
+python scripts/23_evaluar_coco_distancia.py --scenarios 1 2 7
+python scripts/23_evaluar_coco_distancia.py --scenarios all
+
+Sin argumentos, si ejecutas desde terminal interactiva, el script muestra un menu para
+elegir los escenarios que entran a la evaluacion por distancia.
 ```
 
 24. Analisis de degradacion por distancia:
 ```bash
 python scripts/24_distance_degradation_r4.py
+```
+
+25. Análisis del database sqlite:
+```bash
+
+python scripts/24_distance_degradation_r4.py
+
+# Modo básico (ambas DBs en el mismo directorio)
+python scripts/db_explore.py
+
+# Rutas explícitas + exportar HTML y CSV
+python scripts/db_explore.py --db ./data/analysis_metadata.sqlite ./data/dataset_master.sqlite --export
+
+# Solo análisis cruzado
+python scripts/db_explore.py --cross
 ```
 
 ## Validacion humana del auditor
@@ -267,6 +418,20 @@ Si quieres volver al muestreo mixto anterior:
 ```bash
 python scripts/10_human_validation_audit.py prepare --strategy mixed_stratified --sample-size 600
 ```
+
+Debug rapido con 10 imagenes:
+
+```bash
+python scripts/10_human_validation_audit.py prepare --strategy mixed_stratified --sample-size 10 --annotators 3
+python scripts/10_human_validation_audit.py review --annotator-id A1
+python scripts/10_human_validation_audit.py review --annotator-id A2
+python scripts/10_human_validation_audit.py review --annotator-id A3
+python scripts/10_human_validation_audit.py score --expected-annotators 3
+```
+
+Nota: este modo debug solo limita la muestra para pruebas rapidas. Para correr la
+validacion completa, usa el flujo normal con `prepare` sin `--strategy mixed_stratified
+--sample-size 10`.
 
 2. Revisar imagen por imagen como anotador A1:
 ```bash
@@ -316,6 +481,19 @@ Salidas principales:
 - `seed=0` (recomendado para reproducibilidad)
 - `patience=15` (early stopping)
 
+### Pesos YOLO locales
+
+Ultralytics descarga pesos desde GitHub cuando recibe un nombre como `yolo11n.pt` o
+`yolo11x.pt` y no encuentra el archivo local. En Docker o redes corporativas esa
+descarga puede fallar. Para evitarlo:
+
+- `scripts/15_training.py` usa primero `runs/train/N1_YOLO11n/weights/best.pt` cuando
+  se selecciona `--model n`.
+- `scripts/07_judge_scoring.py` busca el juez en `yolo11x.pt` dentro de la raiz del
+  proyecto montado (`/dataset/yolo11x.pt` en Docker).
+- Si se usan `yolo11s.pt` o `yolo11m.pt`, coloca esos archivos en la raiz del proyecto
+  antes de ejecutar el entrenamiento.
+
 ## Notas
 
 - `13_dataset_generation.py` usa deduplicacion por similitud (Hamming), no por hash exacto.
@@ -333,6 +511,7 @@ Eso corre con defaults:
 --model n
 --epochs 100
 --seeds 7 42 123 999
+--batch automatico si se omite
 Ahora, combinaciones útiles:
 
 python .\scripts\18_train_seed_confirm.py --dry_run
@@ -340,6 +519,9 @@ Muestra el plan sin entrenar.
 
 python .\scripts\18_train_seed_confirm.py --model n --epochs 100 --seeds 7 42 123 999
 Ejecución completa explícita.
+
+python .\scripts\18_train_seed_confirm.py --model 1 --epochs 100 --seeds 7 42 --batch 8
+Modelo numerico equivalente a `n`; batch manual.
 
 python .\scripts\18_train_seed_confirm.py --model n --epochs 50 --seeds 42
 Una sola seed, más rápido.
@@ -360,3 +542,11 @@ python .\scripts\18_train_seed_confirm.py --only_missing --model n --epochs 100 
 Muy útil si se interrumpió una corrida.
 
 python .\scripts\18_train_seed_confirm.py --dry_run --only_missing --model n --epochs 100 --seeds 42 123
+
+Notas:
+
+- El script usa GPU solo si CUDA esta visible; si Docker se ejecuta sin `--gpus all`,
+  cae a `device=cpu`.
+- Para `--model n`, primero intenta usar `runs/train/N1_YOLO11n/weights/best.pt` y evita
+  descargar `yolo11n.pt` desde GitHub.
+- `--model` acepta `n/s/m`, `1/2/3` o nombres `.pt` soportados.

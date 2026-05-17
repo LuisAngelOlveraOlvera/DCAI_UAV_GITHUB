@@ -64,6 +64,11 @@ def get_safe_batch_size():
         return 32
 
 
+def get_training_device():
+    """Use GPU only when CUDA is visible inside the current environment."""
+    return 0 if torch.cuda.is_available() else "cpu"
+
+
 def resolve_yolo11n_source():
     """Find a local yolo11n.pt checkpoint that can seed the default N1 baseline."""
     candidates = [
@@ -127,6 +132,141 @@ def get_available_datasets():
     
     return sorted(datasets)
 
+
+def normalize_model_name(model):
+    """Normalize short model choices to YOLO checkpoint names."""
+    model = (model or "n").strip().lower()
+    numeric_choices = {"1": "n", "2": "s", "3": "m"}
+    model = numeric_choices.get(model, model)
+    if model in ["n", "s", "m"]:
+        return f"yolo11{model}.pt"
+    if model in ["yolo11n.pt", "yolo11s.pt", "yolo11m.pt"]:
+        return model
+    raise ValueError("Modelo invalido. Usa n, s, m, yolo11n.pt, yolo11s.pt o yolo11m.pt.")
+
+
+def resolve_training_model_path(model_name):
+    """Prefer local checkpoints so Ultralytics does not download during Docker runs."""
+    candidates = []
+
+    if model_name == "yolo11n.pt":
+        candidates.append(N1_BASELINE_BEST_PT)
+
+    candidates.extend(
+        [
+            config.DATASET_ROOT / model_name,
+            Path(model_name),
+        ]
+    )
+
+    for candidate in candidates:
+        if candidate.exists():
+            return str(candidate.resolve())
+
+    logger.warning(
+        f"No se encontro checkpoint local para {model_name}. "
+        "Ultralytics intentara descargarlo desde GitHub."
+    )
+    return model_name
+
+
+def resolve_selected_datasets(selection, available_datasets):
+    """Resolve CLI/menu dataset selection against datasets in exports/."""
+    if not available_datasets:
+        print(" No se encontraron datasets en exports/.")
+        print("   Ejecuta primero: python 13_dataset_generation.py")
+        sys.exit(0)
+
+    if not selection or selection == ["all"]:
+        return available_datasets
+
+    selected = []
+    missing = []
+    for item in selection:
+        item = item.strip()
+        if not item:
+            continue
+        if item.lower() == "all":
+            return available_datasets
+        if item.isdigit():
+            idx = int(item) - 1
+            if 0 <= idx < len(available_datasets):
+                selected.append(available_datasets[idx])
+            else:
+                missing.append(item)
+        elif item in available_datasets:
+            selected.append(item)
+        else:
+            missing.append(item)
+
+    if missing:
+        raise ValueError(f"Datasets no encontrados: {', '.join(missing)}")
+    if not selected:
+        print(" Ningun dataset seleccionado.")
+        sys.exit(0)
+
+    return list(dict.fromkeys(selected))
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Entrena modelos YOLO de forma interactiva o no interactiva."
+    )
+    parser.add_argument(
+        "--datasets",
+        nargs="+",
+        help="Datasets a entrenar por nombre, indice o 'all'. Default: menu interactivo.",
+    )
+    parser.add_argument(
+        "--model",
+        default=None,
+        help="Modelo YOLO: n, s, m, yolo11n.pt, yolo11s.pt o yolo11m.pt.",
+    )
+    parser.add_argument(
+        "--epochs",
+        type=int,
+        default=None,
+        help="Numero de epochs. Default interactivo: 50; default no interactivo: 100.",
+    )
+    parser.add_argument(
+        "--batch",
+        type=int,
+        default=None,
+        help="Batch size. Si se omite, se calcula automaticamente.",
+    )
+    parser.add_argument(
+        "--yes",
+        "-y",
+        action="store_true",
+        help="Confirma el entrenamiento sin pedir input.",
+    )
+    return parser.parse_args()
+
+
+def get_cli_training_config(args):
+    available_datasets = get_available_datasets()
+    selected_datasets = resolve_selected_datasets(args.datasets, available_datasets)
+    model_name = normalize_model_name(args.model or "n")
+    epochs = args.epochs if args.epochs is not None else 100
+    batch_size = args.batch if args.batch is not None else get_safe_batch_size()
+    device = get_training_device()
+
+    if "m.pt" in model_name and batch_size > 4:
+        batch_size = 4
+
+    print("\nConfiguracion no interactiva:")
+    print(f"  - Datasets: {', '.join(selected_datasets)}")
+    print(f"  - Modelo: {model_name}")
+    print(f"  - Epochs: {epochs}")
+    print(f"  - Batch: {batch_size}")
+    print(f"  - Device: {device}")
+
+    if not args.yes:
+        print("\nUsa --yes para confirmar ejecucion no interactiva.")
+        sys.exit(0)
+
+    return selected_datasets, model_name, epochs, batch_size, device
+
 # ============================================================
 # INTERACTIVE MENU
 # ============================================================
@@ -176,7 +316,11 @@ def interactive_menu():
     print("  [m] yolo11m.pt (Medium) - Preciso, pero pesado (Posible OOM, usar Batch 4)")
     
     mod_choice = input("\n Elige modelo [n/s/m] (default 'n'): ").strip().lower()
-    model_name = f"yolo11{mod_choice}.pt" if mod_choice in ['n', 's', 'm'] else "yolo11n.pt"
+    try:
+        model_name = normalize_model_name(mod_choice or "n")
+    except ValueError as exc:
+        print(f" {exc}")
+        sys.exit(1)
 
     # 3. Epochs
     ep_input = input("\n Número de Epochs (default 50): ").strip()
@@ -184,11 +328,13 @@ def interactive_menu():
     
     # 4. Batch Size Seguro
     safe_batch = get_safe_batch_size()
+    device = get_training_device()
     # Ajuste por modelo: Si elige Medium en 6GB, bajamos el batch
     if 'm.pt' in model_name and safe_batch > 4:
         safe_batch = 4
         
-    print(f"\n Configuración detectada para RTX 3060 (6GB):")
+    print(f"\n Configuración detectada:")
+    print(f"   - Device: {device}")
     print(f"   - Batch Size Automático: {safe_batch}")
     print(f"   - Workers: 2")
     print(f"   - AMP (Mixed Precision): Activado")
@@ -197,18 +343,22 @@ def interactive_menu():
     if confirm != 's':
         sys.exit(0)
         
-    return selected_datasets, model_name, epochs, safe_batch
+    return selected_datasets, model_name, epochs, safe_batch, device
 
 # ============================================================
 # BUCLE DE ENTRENAMIENTO
 # ============================================================
-def run_training_sequence():
+def run_training_sequence(training_config=None):
     ensure_default_n1_baseline()
-    datasets, model_name, epochs, batch_size = interactive_menu()
+    if training_config is None:
+        datasets, model_name, epochs, batch_size, device = interactive_menu()
+    else:
+        datasets, model_name, epochs, batch_size, device = training_config
     
     total_start = time.time()
     
     for i, ds_name in enumerate(datasets):
+        model = None
         logger.info(f"\n{'#'*60}")
         logger.info(f"INICIANDO ESCENARIO {i+1}/{len(datasets)}: {ds_name}")
         logger.info(f"{'#'*60}")
@@ -223,8 +373,9 @@ def run_training_sequence():
         
         try:
             # 3. Cargar Modelo
-            logger.info(f"Cargando {model_name}...")
-            model = YOLO(model_name)
+            model_path = resolve_training_model_path(model_name)
+            logger.info(f"Cargando {model_path}...")
+            model = YOLO(model_path)
             
             # 4. Entrenar
             # Train with 'exist_ok=True' to avoid creating exp2, exp3 on retries
@@ -233,7 +384,7 @@ def run_training_sequence():
                 epochs=epochs,
                 batch=batch_size,
                 imgsz=640,
-                device=0,           # GPU 0
+                device=device,
                 workers=2,          # More stable on Windows + 16GB RAM
                 project=str(project_dir),
                 name=run_name,
@@ -255,7 +406,8 @@ def run_training_sequence():
         
         finally:
             # 6. LIMPIEZA AGRESIVA POST-ENTRENAMIENTO
-            del model
+            if model is not None:
+                del model
             clean_gpu_memory()
             logger.info("⏳ Enfriando GPU (5 segundos)...")
             time.sleep(5)
@@ -268,7 +420,18 @@ def run_training_sequence():
 
 if __name__ == "__main__":
     try:
-        run_training_sequence()
+        args = parse_args()
+        has_cli_config = any(
+            [
+                args.datasets is not None,
+                args.model is not None,
+                args.epochs is not None,
+                args.batch is not None,
+                args.yes,
+            ]
+        )
+        config_override = get_cli_training_config(args) if has_cli_config else None
+        run_training_sequence(config_override)
     except KeyboardInterrupt:
         logger.warning("\n Proceso detenido por el usuario.")
         sys.exit(0)

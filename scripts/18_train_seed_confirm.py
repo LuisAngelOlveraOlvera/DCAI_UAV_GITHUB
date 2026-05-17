@@ -46,6 +46,7 @@ R4_FINALISTS = [
     "H_pH_JS_40",
 ]
 DEFAULT_SEEDS = [7, 42, 123, 999]
+N1_BASELINE_BEST_PT = config.DATASET_ROOT / "runs" / "train" / "N1_YOLO11n" / "weights" / "best.pt"
 
 
 # ============================================================
@@ -78,6 +79,48 @@ def get_safe_batch_size():
         return 16
     else:
         return 32
+
+
+def get_training_device():
+    """Usa GPU solo cuando CUDA es visible dentro del entorno actual."""
+    return 0 if torch.cuda.is_available() else "cpu"
+
+
+def normalize_model_name(model):
+    """Normaliza opciones cortas/numericas a checkpoints YOLO."""
+    model = (model or "n").strip().lower()
+    numeric_choices = {"1": "n", "2": "s", "3": "m"}
+    model = numeric_choices.get(model, model)
+    if model in ["n", "s", "m"]:
+        return f"yolo11{model}.pt"
+    if model in ["yolo11n.pt", "yolo11s.pt", "yolo11m.pt"]:
+        return model
+    raise ValueError("Modelo invalido. Usa n, s, m, 1, 2, 3, yolo11n.pt, yolo11s.pt o yolo11m.pt.")
+
+
+def resolve_training_model_path(model_name):
+    """Prefiere checkpoints locales para evitar descargas de Ultralytics en Docker."""
+    candidates = []
+
+    if model_name == "yolo11n.pt":
+        candidates.append(N1_BASELINE_BEST_PT)
+
+    candidates.extend(
+        [
+            config.DATASET_ROOT / model_name,
+            Path(model_name),
+        ]
+    )
+
+    for candidate in candidates:
+        if candidate.exists():
+            return str(candidate.resolve())
+
+    logger.warning(
+        f"No se encontro checkpoint local para {model_name}. "
+        "Ultralytics intentara descargarlo desde GitHub."
+    )
+    return model_name
 
 
 # ============================================================
@@ -237,9 +280,8 @@ def parse_args():
     )
     parser.add_argument(
         "--model",
-        choices=["n", "s", "m"],
         default="n",
-        help="Modelo YOLO a usar: n|s|m (default: n)",
+        help="Modelo YOLO a usar: n|s|m, 1|2|3 o nombre .pt (default: n)",
     )
     parser.add_argument(
         "--epochs",
@@ -253,6 +295,12 @@ def parse_args():
         type=int,
         default=DEFAULT_SEEDS,
         help="Seeds a ejecutar (default: 42 123)",
+    )
+    parser.add_argument(
+        "--batch",
+        type=int,
+        default=None,
+        help="Batch size. Si se omite, se calcula automaticamente.",
     )
     parser.add_argument(
         "--only_missing",
@@ -302,11 +350,12 @@ def print_execution_plan(plan, model_name, epochs, batch_size, results_csv):
 def run_training_seed_confirm():
     args = parse_args()
 
-    model_name = f"yolo11{args.model}.pt"
+    model_name = normalize_model_name(args.model)
     epochs = args.epochs
     seeds = [int(s) for s in args.seeds]
 
-    batch_size = get_safe_batch_size()
+    batch_size = args.batch if args.batch is not None else get_safe_batch_size()
+    device = get_training_device()
     if "m.pt" in model_name and batch_size > 4:
         batch_size = 4
 
@@ -334,6 +383,7 @@ def run_training_seed_confirm():
 
     if args.dry_run:
         print_execution_plan(plan, model_name, epochs, batch_size, results_csv)
+        print(f"Device: {device}")
         return
 
     total_start = time.time()
@@ -365,8 +415,9 @@ def run_training_seed_confirm():
                 clean_gpu_memory()
                 set_seed(seed)
 
-                logger.info(f"Cargando {model_name} para seed={seed}...")
-                model = YOLO(model_name)
+                model_path = resolve_training_model_path(model_name)
+                logger.info(f"Cargando {model_path} para seed={seed}...")
+                model = YOLO(model_path)
 
                 # Protocolo solicitado
                 model.train(
@@ -374,7 +425,7 @@ def run_training_seed_confirm():
                     epochs=epochs,
                     batch=batch_size,
                     imgsz=640,
-                    device=0,
+                    device=device,
                     workers=2,
                     project=str(project_dir),
                     name=run_name,
@@ -438,7 +489,12 @@ def run_training_seed_confirm():
 
 if __name__ == "__main__":
     try:
-        run_training_seed_confirm()
+        utils.run_with_sqlite_registration(
+            script_name="18_train_seed_confirm.py",
+            func=run_training_seed_confirm,
+            db_path=config.DB_PATH,
+            outputs={"runs_dir": config.DATASET_ROOT / "runs" / "train"},
+        )
     except KeyboardInterrupt:
         logger.warning("\nProceso detenido por el usuario.")
         sys.exit(0)

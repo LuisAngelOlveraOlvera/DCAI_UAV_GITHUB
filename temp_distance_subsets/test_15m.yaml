@@ -1,0 +1,6 @@
+names:
+  0: person
+path: C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB
+test: temp_distance_subsets/subset_15m.txt
+train: temp_distance_subsets/subset_15m.txt
+val: temp_distance_subsets/subset_15m.txt

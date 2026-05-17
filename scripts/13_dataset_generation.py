@@ -9,6 +9,7 @@ Materialize physical DoE datasets by:
 -----------------------------------------------------------------------
 """
 
+import argparse
 import sqlite3
 import shutil
 import time
@@ -324,14 +325,67 @@ def build_scenario(scenario_name, params):
     }
 
 
-def run_construction():
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Materialize physical DoE datasets for all scenarios or a selected subset."
+    )
+    parser.add_argument(
+        "--scenarios",
+        nargs="+",
+        help="Scenario names to build, for example: N2_B_Raw_0 N3_H_Raw_0",
+    )
+    return parser.parse_args()
+
+
+def resolve_selected_scenarios(requested_names):
+    scenarios = config_analysis.SCENARIOS
+    if not requested_names:
+        return scenarios
+
+    alias_to_name = {}
+    for scenario_name, params in scenarios.items():
+        alias_to_name[scenario_name] = scenario_name
+        short_id = str(params.get("id", "")).strip()
+        if short_id:
+            alias_to_name.setdefault(short_id, scenario_name)
+
+    selected_names = []
+    unknown = []
+    for raw_name in requested_names:
+        resolved = alias_to_name.get(raw_name)
+        if resolved is None:
+            unknown.append(raw_name)
+            continue
+        if resolved not in selected_names:
+            selected_names.append(resolved)
+
+    if unknown:
+        available_full = ", ".join(sorted(scenarios.keys()))
+        available_short = ", ".join(
+            sorted(str(params.get("id", "")).strip() for params in scenarios.values() if params.get("id"))
+        )
+        raise ValueError(
+            f"Unknown scenario(s): {', '.join(unknown)}. "
+            f"Available short ids: {available_short}. "
+            f"Available full names: {available_full}"
+        )
+
+    return {name: scenarios[name] for name in selected_names}
+
+
+def run_construction(selected_scenarios=None):
     logger.info("STARTING DOE DATASET CONSTRUCTION")
     logger.info(f"HAMMING_THRESHOLD={config.HAMMING_THRESHOLD}")
+    if selected_scenarios:
+        logger.info(f"Selected scenarios: {', '.join(selected_scenarios.keys())}")
+    else:
+        logger.info("Selected scenarios: ALL")
 
     built = 0
     skipped = 0
     timing_rows = []
-    for scenario_name, params in config_analysis.SCENARIOS.items():
+    scenarios = selected_scenarios or config_analysis.SCENARIOS
+    for scenario_name, params in scenarios.items():
         try:
             if not params.get("build_dataset", True):
                 skipped += 1
@@ -375,4 +429,6 @@ def run_construction():
 
 
 if __name__ == "__main__":
-    run_construction()
+    args = parse_args()
+    selected_scenarios = resolve_selected_scenarios(args.scenarios)
+    run_construction(selected_scenarios=selected_scenarios)

@@ -481,16 +481,24 @@ def plot_anova_effects(anova_tables: Dict[str, pd.DataFrame], figs_dir: Path) ->
     for ax, metric in zip(axes, METRICS):
         anova_df = anova_tables[metric]
         plot_df = anova_df[anova_df["Term"].isin(EFFECT_TERMS)].copy()
+        if plot_df.empty:
+            ax.set_title(metric, fontsize=16, fontweight="bold")
+            ax.text(0.5, 0.5, "No data", transform=ax.transAxes, ha="center", va="center", fontsize=13)
+            continue
+
         effect_vals = plot_df["partial_eta_sq"].astype(float).to_numpy()
         p_vals = plot_df["p_value"].astype(float).to_numpy()
+        x_pos = np.arange(len(plot_df), dtype=float)
         colors = ["#d7301f" if (not np.isnan(p) and p < 0.05) else "#ffb347" for p in p_vals]
-        ax.bar(plot_df["Term"], effect_vals, color=colors, edgecolor=EDGE_COLOR)
+        ax.bar(x_pos, effect_vals, color=colors, edgecolor=EDGE_COLOR)
         ax.set_title(metric, fontsize=16, fontweight="bold")
         ax.set_ylabel("Partial eta^2", fontsize=16)
         ax.set_ylim(0.0, min(1.05, max(0.15, np.nanmax(effect_vals) * 1.1)))
+        ax.set_xticks(x_pos)
+        ax.set_xticklabels(plot_df["Term"].tolist())
         ax.tick_params(axis="x", labelsize=13, rotation=20)
         ax.tick_params(axis="y", labelsize=13)
-        for x, eta, p in zip(plot_df["Term"], effect_vals, p_vals):
+        for x, eta, p in zip(x_pos, effect_vals, p_vals):
             label = "nan" if np.isnan(p) else f"p={p:.2e}"
             ax.text(x, eta + 0.01, label, ha="center", va="bottom", fontsize=13, rotation=90)
     plt.tight_layout()
@@ -652,4 +660,9 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    utils.run_with_sqlite_registration(
+        script_name="21_r4_confirmatory_stats.py",
+        func=main,
+        db_path=config.DB_PATH,
+        outputs={"default_out_dir": config.EXPORTS_DIR / R4_NAME},
+    )

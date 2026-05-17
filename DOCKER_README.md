@@ -116,6 +116,56 @@ Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process
 
 El script detectará automáticamente si tienes GPU y construirá la imagen óptima.
 
+### Contexto de build y archivos grandes
+
+Antes de construir la imagen, Docker empaqueta el contexto de build. Ese contexto no
+debe incluir `.git`, datasets, modelos, videos, logs, exports ni resultados de
+entrenamiento. El proyecto usa `.dockerignore` para excluir esos archivos durante
+`docker build`.
+
+`.gitignore` y `.dockerignore` no son equivalentes:
+
+- `.gitignore` controla que Git no versiona artefactos locales.
+- `.dockerignore` controla que Docker no envia artefactos locales al build context.
+
+Si `.dockerignore` no excluye archivos grandes, el build puede tardar demasiado o copiar
+decenas de GB aunque el Dockerfile no los necesite. Deben quedar fuera del contexto:
+
+- `.git/` y `.github/`
+- `DATASET_KAGGLE/`, `EVALUATION/`
+- `runs/`, `logs/`, `exports/`
+- `__pycache__/`, `.cache/`, `.ipynb_checkpoints/`
+- `.venv/`, `venv/`, `env/`
+- modelos: `*.pt`, `*.pth`, `*.onnx`, `*.engine`, `*.weights`
+- comprimidos: `*.zip`, `*.rar`, `*.7z`, `*.tar`, `*.gz`
+- videos: `*.mp4`, `*.avi`, `*.mov`
+
+Diagnostico rapido en PowerShell antes de construir:
+
+```powershell
+git count-objects -vH
+
+Get-ChildItem -Force |
+  Sort-Object Length -Descending |
+  Select-Object Mode, Length, Name
+
+Get-ChildItem -Force .git\objects -Recurse -File |
+  Measure-Object Length -Sum
+```
+
+Si `.git/objects` crece demasiado, compacta objetos:
+
+```powershell
+git gc --prune=now
+git count-objects -vH
+```
+
+En Windows, OneDrive, VS Code, Docker Desktop, Explorer o el antivirus pueden bloquear
+packs viejos dentro de `.git/objects/pack`. Si `git gc --prune=now` compacta pero no
+puede borrar un pack viejo, cierra esos procesos y repite el comando. Si Git ya quedo
+funcional y el archivo viejo sigue bloqueado, borralo manualmente cuando el proceso que
+lo retenia se haya cerrado.
+
 ### Build Manual (Avanzado)
 
 ```bash
@@ -226,151 +276,430 @@ docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/01_check_db
 
 ## Flujo recomendado
 
+### Paso previo para scripts con ventanas interactivas
+
+El script `scripts/09_analysis_bad_labels.py` abre ventanas interactivas con OpenCV/Qt o
+Matplotlib, por ejemplo `cv2.imshow()`, `cv2.waitKey()` o `plt.show()`. Docker no tiene
+pantalla propia, asi que la salida grafica debe redirigirse hacia el sistema host antes
+de ejecutar este tipo de scripts.
+
+#### Windows + PowerShell + XLaunch/VcXsrv
+
+En Windows se usa XLaunch/VcXsrv como servidor grafico.
+
+Configuracion de XLaunch:
+
+- `Multiple windows`
+- `Start no client`
+- `Disable access control` activado
+
+Comando recomendado desde PowerShell:
+
+```powershell
+docker run --rm -it `
+  -v "${PWD}:/dataset" `
+  -e DISPLAY=host.docker.internal:0.0 `
+  -e QT_X11_NO_MITSHM=1 `
+  validador-imagen `
+  python scripts/09_analysis_bad_labels.py
+```
+
+Con esto, las ventanas generadas dentro del contenedor se muestran en Windows mediante
+XLaunch.
+
+#### Linux / Ubuntu
+
+Permitir primero que Docker acceda al servidor X local:
+
+```bash
+xhost +local:docker
+```
+
+Luego ejecutar el contenedor compartiendo el socket X11:
+
+```bash
+docker run --rm -it \
+  -v "$(pwd)":/dataset \
+  -v /tmp/.X11-unix:/tmp/.X11-unix \
+  -e DISPLAY=$DISPLAY \
+  validador-imagen python scripts/09_analysis_bad_labels.py
+```
+
+Con esto, las ventanas de OpenCV/Matplotlib se muestran directamente usando el servidor
+grafico de Ubuntu.
+
+### Antes de ejecutar: compatibilidad Windows/PowerShell
+
+Los comandos del flujo recomendado estan escritos primero para Linux/macOS
+(`"$(pwd)":/dataset`). En Windows/PowerShell, especialmente si el proyecto esta dentro
+de rutas con espacios como OneDrive, usa una de estas variantes para montar el volumen
+sin romper la ruta:
+
+```markdown
+# Linux / macOS (Bash/Zsh)
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/10_human_validation_audit.py review --annotator-id A1
+
+# Windows (PowerShell) - Opcion recomendada
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/10_human_validation_audit.py review --annotator-id A1
+
+# Windows (PowerShell) - Opcion alternativa (.Path)
+docker run --rm -v "$((pwd).Path):/dataset" validador-imagen python scripts/10_human_validation_audit.py review --annotator-id A1
+```
+
+Regla practica: cuando veas `-v "$(pwd)":/dataset` en los pasos Linux/Bash, en
+PowerShell usa `-v "${PWD}:/dataset"` o `-v "$((pwd).Path):/dataset"`.
+
 ### Core pipeline
 
 0. Preparar estructura Kaggle si `DATASET_KAGGLE/PASCAL_VOC_UAQ_MSUAV` no existe:
 ```bash
+# Linux / macOS (Bash/Zsh)
 docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/00_dataset_setup.py
+
+# Windows (PowerShell)
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/00_dataset_setup.py
 ```
 
 1. Chequeo rapido del estado de bases:
 ```bash
+# Linux / macOS (Bash/Zsh)
 docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/01_check_db_status.py
+
+# Windows (PowerShell)
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/01_check_db_status.py
 ```
 
 2. Ingesta analitica:
 ```bash
+# Linux / macOS (Bash/Zsh)
 docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/02_analysis_etl.py
 Salida: analysis_metadata.sqlite
 IMPORTANTE: SE TIENE QUE VOLVER A EJECUTAR TERMINANDO 02_analysis_etl.py
 docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/01_check_db_status.py
+
+# Windows (PowerShell)
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/02_analysis_etl.py
+Salida: analysis_metadata.sqlite
+IMPORTANTE: SE TIENE QUE VOLVER A EJECUTAR TERMINANDO 02_analysis_etl.py
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/01_check_db_status.py
 ```
 
 3. Reporte de duplicados Hamming por fuente (opcional):
 ```bash
+# Linux / macOS (Bash/Zsh)
 docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/03_hamming_source_report.py
+
+# Windows (PowerShell)
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/03_hamming_source_report.py
+
 Salida: hamming_source_report.csv
 ```
 
 4. ETL maestro (dataset fisico y anotaciones):
 ```bash
+# Linux / macOS (Bash/Zsh)
 docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/04_etl_ingestion.py
 IMPORTANTE: SE TIENE QUE VOLVER A EJECUTAR TERMINANDO 02_analysis_etl.py
 docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/01_check_db_status.py
+
+# Windows (PowerShell)
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/04_etl_ingestion.py
+IMPORTANTE: SE TIENE QUE VOLVER A EJECUTAR TERMINANDO 02_analysis_etl.py
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/01_check_db_status.py
 ```
 
 5. Validacion de integridad del dataset maestro:
 ```bash
+# Linux / macOS (Bash/Zsh)
 docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/05_validar_integridad.py
+
+# Windows (PowerShell)
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/05_validar_integridad.py
 ```
 
 6. Exportacion multi-formato de anotaciones (opcional):
 ```bash
+# Linux / macOS (Bash/Zsh)
 docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/06_exportar_anotacion.py
+
+# Windows (PowerShell)
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/06_exportar_anotacion.py
+
 Salida: Carpetas con diferentes formatos de frameworks
 ```
 
 7. Juez one-pass (inferencia + scoring + QA semantico):
 ```bash
+# Linux / macOS (Bash/Zsh)
 docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python scripts/07_judge_scoring.py
+
+# Windows (PowerShell)
+docker run --gpus all --rm -v "${PWD}:/dataset" validador-imagen python scripts/07_judge_scoring.py
+
 Salida: dataset_master.sqlite
 ```
 
 8. Sync QA (sin reinferencia, copia `label_issue` a `dataset_master.sqlite`):
 ```bash
+# Linux / macOS (Bash/Zsh)
 docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/08_qa_audit.py
+
+# Windows (PowerShell)
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/08_qa_audit.py
+
 Salida: audit_details.csv
 ```
 
 9. Inspeccion visual de bad labels / poor alignment (opcional):
 ```bash
-docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python scripts/09_analysis_bad_labels.py
+# Linux / Ubuntu (Bash/Zsh)
+docker run --rm -it \
+  -v "$(pwd)":/dataset \
+  -v /tmp/.X11-unix:/tmp/.X11-unix \
+  -e DISPLAY=$DISPLAY \
+  validador-imagen python scripts/09_analysis_bad_labels.py
+
+# Windows (PowerShell + XLaunch/VcXsrv)
+docker run --rm -it `
+  -v "${PWD}:/dataset" `
+  -e DISPLAY=host.docker.internal:0.0 `
+  -e QT_X11_NO_MITSHM=1 `
+  validador-imagen `
+  python scripts/09_analysis_bad_labels.py
+
 Salida: Reporte interactivo de defectos bad labels, dedup_phash, poor_alignment, weak
 ```
 
 10. Validacion humana del auditor (opcional, por fases):
 ```bash
+# Linux / macOS (Bash/Zsh)
 docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/10_human_validation_audit.py prepare
 docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/10_human_validation_audit.py review --annotator-id A1
 docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/10_human_validation_audit.py score --expected-annotators 3
+
+# Windows (PowerShell)
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/10_human_validation_audit.py prepare
+docker run --rm -it -v "${PWD}:/dataset" -e DISPLAY=host.docker.internal:0.0 -e QT_X11_NO_MITSHM=1 validador-imagen python scripts/10_human_validation_audit.py review --annotator-id A1
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/10_human_validation_audit.py score --expected-annotators 3
+
 salida: \human_validation_consensus.csv, \human_validation_pairwise_kappa.csv, \human_validation_metrics_summary.csv, \human_validation_metrics_per_class.csv, \human_validation_metrics_breakdown.csv
 ```
 
 11. Simulacion DoE (tabla de impacto) a diferentes niveles de Phash:
 ```bash
+# Linux / macOS (Bash/Zsh)
 docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/11_scenario_simulator.py
+
+# Windows (PowerShell)
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/11_scenario_simulator.py
+
 Salida: reporte_analisis_escenarios.csv
 ```
 
 12. Reporte analitico de base / QA / Judge (opcional):
 ```bash
+# Linux / macOS (Bash/Zsh)
 docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/12_db_analysis_report.py
+
+# Windows (PowerShell)
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/12_db_analysis_report.py
+
 Salida: db_analysis_report.csv, \exports\db_threshold_breakdown.csv
 ```
 
 13. Generacion fisica de datasets DoE:
 ```bash
+# Linux / macOS (Bash/Zsh)
 docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/13_dataset_generation.py
+
+# Windows (PowerShell)
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/13_dataset_generation.py
+```
+
+Para construir solo escenarios especificos:
+
+```bash
+# Linux / macOS (Bash/Zsh)
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/13_dataset_generation.py --scenarios N2
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/13_dataset_generation.py --scenarios N2_B_Raw_0
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/13_dataset_generation.py --scenarios N2_B_Raw_0 N3_H_Raw_0
+
+# Windows (PowerShell)
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/13_dataset_generation.py --scenarios N2
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/13_dataset_generation.py --scenarios N2_B_Raw_0
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/13_dataset_generation.py --scenarios N2_B_Raw_0 N3_H_Raw_0
 ```
 
 14. Validacion fisica de escenarios:
 ```bash
+# Linux / macOS (Bash/Zsh)
 docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/14_validation_report.py
+
+# Windows (PowerShell)
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/14_validation_report.py
 ```
 
 15. Entrenamiento:
 ```bash
-docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python scripts/15_training.py
-Salida - ejecuta los entrenamientos, es un menu interactivo
+# Linux / macOS (Bash/Zsh)
+docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python scripts/15_training.py --datasets all --model n --epochs 100 --yes
+
+# Windows (PowerShell)
+docker run --gpus all --rm -v "${PWD}:/dataset" validador-imagen python scripts/15_training.py --datasets all --model n --epochs 100 --yes
+
+Salida - ejecuta los entrenamientos secuencialmente sin menu interactivo.
+
+Para usar el menu interactivo, agrega `-it`:
+
+docker run --gpus all --rm -it -v "${PWD}:/dataset" validador-imagen python scripts/15_training.py
 ```
 
 16. Evaluacion:
 ```bash
-docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python scripts/16_evaluar_coco_persona.py
+# Linux / macOS (Bash/Zsh)
+docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python scripts/16_evaluar_coco_persona.py --datasets all --weights all
+
+# Windows (PowerShell)
+docker run --gpus all --rm -v "${PWD}:/dataset" validador-imagen python scripts/16_evaluar_coco_persona.py --datasets all --weights all
+
+Para elegir datasets de evaluacion y pesos por menu, agrega `-it`:
+
+docker run --gpus all --rm -it -v "${PWD}:/dataset" validador-imagen python scripts/16_evaluar_coco_persona.py
+
+Para evaluar solo algunos datasets con pesos especificos:
+
+docker run --gpus all --rm -v "${PWD}:/dataset" validador-imagen python scripts/16_evaluar_coco_persona.py --datasets COCO_TEST VISDRONE --weights N1_YOLO11n N2_B_Raw_0_yolo11n_e100
+
+docker run --gpus all --rm -v "${PWD}:/dataset" validador-imagen python scripts/16_evaluar_coco_persona.py --list-datasets
+docker run --gpus all --rm -v "${PWD}:/dataset" validador-imagen python scripts/16_evaluar_coco_persona.py --list-weights
 ```
+
+Nota: `16_evaluar_coco_persona.py` genera YAML temporales con rutas absolutas calculadas
+en runtime. Esto evita que Ultralytics reinterprete rutas relativas bajo su
+`datasets_dir` interno, por ejemplo `/dataset/datasets` dentro de Docker.
 
 ### Seleccion R0-R3 y confirmacion R4
 
 17. Seleccion reducida R0-R3:
 ```bash
+# Linux / macOS (Bash/Zsh)
 docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/17_doe_pipeline_reduced.py
+
+# Windows (PowerShell)
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/17_doe_pipeline_reduced.py
 ```
 
 18. Entrenamiento confirmatorio multi-seed:
 ```bash
-docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python scripts/18_train_seed_confirm.py
+# Linux / macOS (Bash/Zsh)
+docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python scripts/18_train_seed_confirm.py --only_missing --model n --epochs 100 --seeds 7 42 123 999
+
+# Windows (PowerShell)
+docker run --gpus all --rm -v "${PWD}:/dataset" validador-imagen python scripts/18_train_seed_confirm.py --only_missing --model n --epochs 100 --seeds 7 42 123 999
+
 IMPORTANTE: LOS R4_FINALISTS DE LA LINEA 40 - 48 SE TIENEN QUE COLOCAR DE FORMA MANUAL BASADO EN LOS RESULTAODS DE 17_doe_pipeline_reduced.py
 ```
 
 19. Seleccion final R4:
 ```bash
+# Linux / macOS (Bash/Zsh)
 docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python scripts/19_doe_r4_final.py
+
+# Windows (PowerShell)
+docker run --gpus all --rm -v "${PWD}:/dataset" validador-imagen python scripts/19_doe_r4_final.py
+
+# Listar datasets disponibles
+docker run --gpus all --rm -v "${PWD}:/dataset" validador-imagen python scripts/19_doe_r4_final.py --list-datasets
+
+# Evaluar solo algunos datasets
+docker run --gpus all --rm -v "${PWD}:/dataset" validador-imagen python scripts/19_doe_r4_final.py --datasets VISDRONE NTUT COCO_TEST
+
+# Tambien acepta indices del menu o 'all'
+docker run --gpus all --rm -v "${PWD}:/dataset" validador-imagen python scripts/19_doe_r4_final.py --datasets 1 5 2
+docker run --gpus all --rm -v "${PWD}:/dataset" validador-imagen python scripts/19_doe_r4_final.py --datasets all
+
+Sin argumentos, si ejecutas el contenedor en terminal interactiva, el script muestra un
+menu para elegir los datasets donde se evalua R4.
+
 IMPORTANTE: LOS R4_FINALISTS DE LA LINEA 48 - 54 SE TIENEN QUE COLOCAR DE FORMA MANUAL BASADO EN LOS RESULTAODS DE 17_doe_pipeline_reduced.py
 ```
 
 20. Graficas de momentos por seed:
 ```bash
+# Linux / macOS (Bash/Zsh)
 docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/20_plot_r4_seed_moments.py
+
+# Windows (PowerShell)
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/20_plot_r4_seed_moments.py
 ```
 
 21. Estadistica confirmatoria R4:
 ```bash
+# Linux / macOS (Bash/Zsh)
 docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/21_r4_confirmatory_stats.py
+
+# Windows (PowerShell)
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/21_r4_confirmatory_stats.py
 ```
 
 22. Tukey HSD + Shapiro-Wilk:
 ```bash
+# Linux / macOS (Bash/Zsh)
 docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/22_r4_tukey_shapiro.py
+
+# Windows (PowerShell)
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/22_r4_tukey_shapiro.py
 ```
 
 23. Evaluacion por distancia:
 ```bash
+# Linux / macOS (Bash/Zsh)
 docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/23_evaluar_coco_distancia.py
+
+# Windows (PowerShell)
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/23_evaluar_coco_distancia.py
+
+# Listar escenarios disponibles
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/23_evaluar_coco_distancia.py --list-scenarios
+
+# Evaluar solo algunos escenarios por alias N#
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/23_evaluar_coco_distancia.py --scenarios N1 N7 N11
+
+# Evaluar por nombre completo, indices o 'all'
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/23_evaluar_coco_distancia.py --scenarios N1_YOLO11n N2_B_Raw_0_yolo11n_e100
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/23_evaluar_coco_distancia.py --scenarios 1 2 7
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/23_evaluar_coco_distancia.py --scenarios all
+
+Sin argumentos, si ejecutas el contenedor en terminal interactiva, el script muestra un
+menu para elegir los escenarios que entran a la evaluacion por distancia.
 ```
 
 24. Analisis de degradacion por distancia:
 ```bash
+# Linux / macOS (Bash/Zsh)
 docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/24_distance_degradation_r4.py
+
+# Windows (PowerShell)
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/24_distance_degradation_r4.py
+```
+
+25 Analisis del db
+```bash
+
+# Linux / macOS (Bash/Zsh)
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/25_db_explore.py
+
+# Windows (PowerShell)
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/25_db_explore.py
+
+# Modo básico (ambas DBs en el mismo directorio)
+python scripts/db_explore.py
+
+# Rutas explícitas + exportar HTML y CSV
+python scripts/db_explore.py --db ./data/analysis_metadata.sqlite ./data/dataset_master.sqlite --export
+
+# Solo análisis cruzado
+python scripts/db_explore.py --cross
 ```
 
 ## Validacion humana del auditor
@@ -379,7 +708,11 @@ Flujo recomendado para validar el modelo juez con anotadores humanos:
 
 1. Preparar la muestra humana y exportar plantillas:
 ```bash
+# Linux / macOS (Bash/Zsh)
 docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/10_human_validation_audit.py prepare
+
+# Windows (PowerShell)
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/10_human_validation_audit.py prepare
 ```
 
 Comportamiento por defecto de `prepare`:
@@ -390,22 +723,60 @@ Comportamiento por defecto de `prepare`:
 
 Si quieres volver al muestreo mixto anterior:
 ```bash
+# Linux / macOS (Bash/Zsh)
 docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/10_human_validation_audit.py prepare --strategy mixed_stratified --sample-size 600
+
+# Windows (PowerShell)
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/10_human_validation_audit.py prepare --strategy mixed_stratified --sample-size 600
 ```
+
+Debug rapido con 10 imagenes:
+
+```bash
+# Linux / macOS (Bash/Zsh)
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/10_human_validation_audit.py prepare --strategy mixed_stratified --sample-size 10 --annotators 3
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/10_human_validation_audit.py review --annotator-id A1
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/10_human_validation_audit.py review --annotator-id A2
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/10_human_validation_audit.py review --annotator-id A3
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/10_human_validation_audit.py score --expected-annotators 3
+
+# Windows (PowerShell + XLaunch/VcXsrv para review)
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/10_human_validation_audit.py prepare --strategy mixed_stratified --sample-size 10 --annotators 3
+docker run --rm -it -v "${PWD}:/dataset" -e DISPLAY=host.docker.internal:0.0 -e QT_X11_NO_MITSHM=1 validador-imagen python scripts/10_human_validation_audit.py review --annotator-id A1
+docker run --rm -it -v "${PWD}:/dataset" -e DISPLAY=host.docker.internal:0.0 -e QT_X11_NO_MITSHM=1 validador-imagen python scripts/10_human_validation_audit.py review --annotator-id A2
+docker run --rm -it -v "${PWD}:/dataset" -e DISPLAY=host.docker.internal:0.0 -e QT_X11_NO_MITSHM=1 validador-imagen python scripts/10_human_validation_audit.py review --annotator-id A3
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/10_human_validation_audit.py score --expected-annotators 3
+```
+
+Nota: este modo debug solo limita la muestra para pruebas rapidas. Para correr la
+validacion completa, usa el flujo normal con `prepare` sin `--strategy mixed_stratified
+--sample-size 10`.
 
 2. Revisar imagen por imagen como anotador A1:
 ```bash
+# Linux / macOS (Bash/Zsh)
 docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/10_human_validation_audit.py review --annotator-id A1
+
+# Windows (PowerShell)
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/10_human_validation_audit.py review --annotator-id A1
 ```
 
 3. Revisar imagen por imagen como anotador A2:
 ```bash
+# Linux / macOS (Bash/Zsh)
 docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/10_human_validation_audit.py review --annotator-id A2
+
+# Windows (PowerShell)
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/10_human_validation_audit.py review --annotator-id A2
 ```
 
 4. Revisar imagen por imagen como anotador A3:
 ```bash
+# Linux / macOS (Bash/Zsh)
 docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/10_human_validation_audit.py review --annotator-id A3
+
+# Windows (PowerShell)
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/10_human_validation_audit.py review --annotator-id A3
 ```
 
 Teclas del modo interactivo:
@@ -420,7 +791,11 @@ Teclas del modo interactivo:
 
 5. Calcular consenso humano y estadisticas finales:
 ```bash
+# Linux / macOS (Bash/Zsh)
 docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/10_human_validation_audit.py score --expected-annotators 3
+
+# Windows (PowerShell)
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/10_human_validation_audit.py score --expected-annotators 3
 ```
 
 Salidas principales:
@@ -441,6 +816,19 @@ Salidas principales:
 - `seed=0` (recomendado para reproducibilidad)
 - `patience=15` (early stopping)
 
+### Pesos YOLO locales
+
+Ultralytics descarga pesos desde GitHub cuando recibe un nombre como `yolo11n.pt` o
+`yolo11x.pt` y no encuentra el archivo local. En Docker o redes corporativas esa
+descarga puede fallar. Para evitarlo:
+
+- `scripts/15_training.py` usa primero `runs/train/N1_YOLO11n/weights/best.pt` cuando
+  se selecciona `--model n`.
+- `scripts/07_judge_scoring.py` busca el juez en `yolo11x.pt` dentro de la raiz del
+  proyecto montado (`/dataset/yolo11x.pt` en Docker).
+- Si se usan `yolo11s.pt` o `yolo11m.pt`, coloca esos archivos en la raiz del proyecto
+  antes de ejecutar el entrenamiento.
+
 ## Notas
 
 - `13_dataset_generation.py` usa deduplicacion por similitud (Hamming), no por hash exacto.
@@ -459,6 +847,7 @@ Eso corre con defaults:
 --model n
 --epochs 100
 --seeds 7 42 123 999
+--batch automatico si se omite
 ```
 
 Ahora, combinaciones utiles:
@@ -472,6 +861,11 @@ Muestra el plan sin entrenar.
 docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python .\scripts\18_train_seed_confirm.py --model n --epochs 100 --seeds 7 42 123 999
 ```
 Ejecucion completa explicita.
+
+```bash
+docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python .\scripts\18_train_seed_confirm.py --model 1 --epochs 100 --seeds 7 42 --batch 8
+```
+Modelo numerico equivalente a `n`; batch manual.
 
 ```bash
 docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python .\scripts\18_train_seed_confirm.py --model n --epochs 50 --seeds 42
@@ -507,6 +901,14 @@ Muy util si se interrumpio una corrida.
 docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python .\scripts\18_train_seed_confirm.py --dry_run --only_missing --model n --epochs 100 --seeds 42 123
 ```
 
+Notas:
+
+- El script usa GPU solo si CUDA esta visible; si Docker se ejecuta sin `--gpus all`,
+  cae a `device=cpu`.
+- Para `--model n`, primero intenta usar `runs/train/N1_YOLO11n/weights/best.pt` y evita
+  descargar `yolo11n.pt` desde GitHub.
+- `--model` acepta `n/s/m`, `1/2/3` o nombres `.pt` soportados.
+
 ---
 
 ## Comandos por Script
@@ -524,22 +926,23 @@ docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python .\script
 | `06` | `06_exportar_anotacion.py` | `docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/06_exportar_anotacion.py` |
 | `07` | `07_judge_scoring.py` | `docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python scripts/07_judge_scoring.py` |
 | `08` | `08_qa_audit.py` | `docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/08_qa_audit.py` |
-| `09` | `09_analysis_bad_labels.py` | `docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python scripts/09_analysis_bad_labels.py` |
+| `09` | `09_analysis_bad_labels.py` | `docker run --rm -it -v "$(pwd)":/dataset -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY validador-imagen python scripts/09_analysis_bad_labels.py` |
 | `10` | `10_human_validation_audit.py` | `docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/10_human_validation_audit.py prepare` |
 | `11` | `11_scenario_simulator.py` | `docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/11_scenario_simulator.py` |
 | `12` | `12_db_analysis_report.py` | `docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/12_db_analysis_report.py` |
 | `13` | `13_dataset_generation.py` | `docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/13_dataset_generation.py` |
 | `14` | `14_validation_report.py` | `docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/14_validation_report.py` |
-| `15` | `15_training.py` | `docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python scripts/15_training.py --epochs 100` |
-| `16` | `16_evaluar_coco_persona.py` | `docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python scripts/16_evaluar_coco_persona.py` |
+| `15` | `15_training.py` | `docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python scripts/15_training.py --datasets all --epochs 100 --yes` |
+| `16` | `16_evaluar_coco_persona.py` | `docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python scripts/16_evaluar_coco_persona.py --datasets all --weights all` |
 | `17` | `17_doe_pipeline_reduced.py` | `docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/17_doe_pipeline_reduced.py` |
-| `18` | `18_train_seed_confirm.py` | `docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python scripts/18_train_seed_confirm.py` |
-| `19` | `19_doe_r4_final.py` | `docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python scripts/19_doe_r4_final.py` |
+| `18` | `18_train_seed_confirm.py` | `docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python scripts/18_train_seed_confirm.py --only_missing --model n --epochs 100 --seeds 7 42 123 999` |
+| `19` | `19_doe_r4_final.py` | `docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python scripts/19_doe_r4_final.py --datasets all` |
 | `20` | `20_plot_r4_seed_moments.py` | `docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/20_plot_r4_seed_moments.py` |
 | `21` | `21_r4_confirmatory_stats.py` | `docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/21_r4_confirmatory_stats.py` |
 | `22` | `22_r4_tukey_shapiro.py` | `docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/22_r4_tukey_shapiro.py` |
-| `23` | `23_evaluar_coco_distancia.py` | `docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/23_evaluar_coco_distancia.py` |
+| `23` | `23_evaluar_coco_distancia.py` | `docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/23_evaluar_coco_distancia.py --scenarios all` |
 | `24` | `24_distance_degradation_r4.py` | `docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/24_distance_degradation_r4.py` |
+| `25` | `25_db_explore.py` | `docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/25_db_explore.py` |
 
 ### Windows (PowerShell)
 
@@ -554,22 +957,23 @@ docker run --gpus all --rm -v "$(pwd)":/dataset validador-imagen python .\script
 | `06` | `06_exportar_anotacion.py` | `docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/06_exportar_anotacion.py` |
 | `07` | `07_judge_scoring.py` | `docker run --gpus all --rm -v "${PWD}:/dataset" validador-imagen python scripts/07_judge_scoring.py` |
 | `08` | `08_qa_audit.py` | `docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/08_qa_audit.py` |
-| `09` | `09_analysis_bad_labels.py` | `docker run --gpus all --rm -v "${PWD}:/dataset" validador-imagen python scripts/09_analysis_bad_labels.py` |
+| `09` | `09_analysis_bad_labels.py` | `docker run --rm -it -v "${PWD}:/dataset" -e DISPLAY=host.docker.internal:0.0 -e QT_X11_NO_MITSHM=1 validador-imagen python scripts/09_analysis_bad_labels.py` |
 | `10` | `10_human_validation_audit.py` | `docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/10_human_validation_audit.py prepare` |
 | `11` | `11_scenario_simulator.py` | `docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/11_scenario_simulator.py` |
 | `12` | `12_db_analysis_report.py` | `docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/12_db_analysis_report.py` |
 | `13` | `13_dataset_generation.py` | `docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/13_dataset_generation.py` |
 | `14` | `14_validation_report.py` | `docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/14_validation_report.py` |
-| `15` | `15_training.py` | `docker run --gpus all --rm -v "${PWD}:/dataset" validador-imagen python scripts/15_training.py --epochs 100` |
-| `16` | `16_evaluar_coco_persona.py` | `docker run --gpus all --rm -v "${PWD}:/dataset" validador-imagen python scripts/16_evaluar_coco_persona.py` |
+| `15` | `15_training.py` | `docker run --gpus all --rm -v "${PWD}:/dataset" validador-imagen python scripts/15_training.py --datasets all --epochs 100 --yes` |
+| `16` | `16_evaluar_coco_persona.py` | `docker run --gpus all --rm -v "${PWD}:/dataset" validador-imagen python scripts/16_evaluar_coco_persona.py --datasets all --weights all` |
 | `17` | `17_doe_pipeline_reduced.py` | `docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/17_doe_pipeline_reduced.py` |
-| `18` | `18_train_seed_confirm.py` | `docker run --gpus all --rm -v "${PWD}:/dataset" validador-imagen python scripts/18_train_seed_confirm.py` |
-| `19` | `19_doe_r4_final.py` | `docker run --gpus all --rm -v "${PWD}:/dataset" validador-imagen python scripts/19_doe_r4_final.py` |
+| `18` | `18_train_seed_confirm.py` | `docker run --gpus all --rm -v "${PWD}:/dataset" validador-imagen python scripts/18_train_seed_confirm.py --only_missing --model n --epochs 100 --seeds 7 42 123 999` |
+| `19` | `19_doe_r4_final.py` | `docker run --gpus all --rm -v "${PWD}:/dataset" validador-imagen python scripts/19_doe_r4_final.py --datasets all` |
 | `20` | `20_plot_r4_seed_moments.py` | `docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/20_plot_r4_seed_moments.py` |
 | `21` | `21_r4_confirmatory_stats.py` | `docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/21_r4_confirmatory_stats.py` |
 | `22` | `22_r4_tukey_shapiro.py` | `docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/22_r4_tukey_shapiro.py` |
-| `23` | `23_evaluar_coco_distancia.py` | `docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/23_evaluar_coco_distancia.py` |
+| `23` | `23_evaluar_coco_distancia.py` | `docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/23_evaluar_coco_distancia.py --scenarios all` |
 | `24` | `24_distance_degradation_r4.py` | `docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/24_distance_degradation_r4.py` |
+| `25` | `25_db_explore.py` | `docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/25_db_explore.py` |
 
 ### Notas sobre los Comandos
 
@@ -749,6 +1153,42 @@ docker system prune -a
 # Verificar que el volumen esté bien montado
 docker run --rm -v "$(pwd)":/dataset validador-imagen ls -la scripts/
 ```
+
+---
+
+### 8. Repositorio o build context demasiado grande
+
+**Causa**: `.git/objects`, `DATASET_KAGGLE/`, modelos, videos, `runs/`, `logs/` o
+`exports/` estan ocupando muchos GB. En un incidente real, `.git/objects` llego a
+~16.5 GB y `DATASET_KAGGLE/` a ~16.3 GB.
+
+**Diagnostico Windows/PowerShell**:
+
+```powershell
+git count-objects -vH
+
+Get-ChildItem -Force |
+  Sort-Object Length -Descending |
+  Select-Object Mode, Length, Name
+
+Get-ChildItem -Force .git\objects -Recurse -File |
+  Measure-Object Length -Sum
+```
+
+**Limpieza Git**:
+
+```powershell
+git gc --prune=now
+git count-objects -vH
+```
+
+**Si Windows bloquea `.git\objects\pack`**: cierra OneDrive, VS Code, Docker Desktop,
+Explorer y cualquier antivirus que este inspeccionando la carpeta. Despues repite
+`git gc --prune=now`. Si Git ya funciona y solo queda un pack viejo bloqueado, borralo
+manualmente cuando el bloqueo desaparezca.
+
+**Prevencion**: revisa `.dockerignore` y `.gitignore`. Los datasets y resultados deben
+montarse en runtime con `-v "${PWD}:/dataset"`, no copiarse dentro de la imagen.
 
 ---
 

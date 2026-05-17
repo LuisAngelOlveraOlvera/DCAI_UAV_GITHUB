@@ -1,0 +1,55 @@
+# VCS / local tooling
+.git
+.github
+.gitignore
+.venv
+venv
+env
+.idea
+.vscode
+.cache
+.ipynb_checkpoints
+
+# Python caches
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Generated outputs and large local datasets.
+# Mount these at runtime with: docker run -v "${PWD}:/dataset" ...
+DATASET_KAGGLE/
+EVALUATION/
+exports/
+logs/
+runs/
+temp_distance_subsets/
+
+# Local databases and model weights are runtime artifacts, not build context.
+*.sqlite
+*.sqlite3
+*.db
+*.pt
+*.pth
+*.onnx
+*.engine
+*.weights
+
+# Archives and videos should never enter the Docker build context.
+*.zip
+*.rar
+*.7z
+*.tar
+*.gz
+*.mp4
+*.avi
+*.mov
+
+# Reference PDFs and local notes can be very large.
+REFERENCIAS_FINALES/
+
+# OS noise
+.DS_Store
+Thumbs.db

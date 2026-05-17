@@ -1,0 +1,9 @@
+2026-05-16 18:53:40,651 - QA_Audit_Sync - INFO - --> INICIANDO QA SYNC (SIN REINFERENCIA) <--
+2026-05-16 18:53:40,680 - QA_Audit_Sync - INFO - =======================================================
+2026-05-16 18:53:40,680 - QA_Audit_Sync - INFO - RESULTADOS QA SYNC
+2026-05-16 18:53:40,680 - QA_Audit_Sync - INFO - =======================================================
+2026-05-16 18:53:40,680 - QA_Audit_Sync - INFO - ok: 21
+2026-05-16 18:53:40,681 - QA_Audit_Sync - INFO - unknown=0/21 (0.00%) | límite=5.00%
+2026-05-16 18:53:40,681 - QA_Audit_Sync - INFO - =======================================================
+2026-05-16 18:53:40,681 - QA_Audit_Sync - INFO - [REPORTE] Detalles guardados en: C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\audit_details.csv
+2026-05-16 18:53:40,682 - QA_Audit_Sync - INFO - Conexiones cerradas.

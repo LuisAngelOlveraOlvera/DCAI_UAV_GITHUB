@@ -97,6 +97,8 @@ def normalize_model_name(raw_name: str) -> str:
 
 
 def trapezoid_auc(x: np.ndarray, y: np.ndarray) -> float:
+    if hasattr(np, "trapezoid"):
+        return float(np.trapezoid(y, x))
     return float(np.trapz(y, x))
 
 
@@ -507,4 +509,9 @@ def run_distance_analysis() -> None:
 
 
 if __name__ == "__main__":
-    run_distance_analysis()
+    utils.run_with_sqlite_registration(
+        script_name="24_distance_degradation_r4.py",
+        func=run_distance_analysis,
+        db_path=config.DB_PATH,
+        outputs={"out_dir": OUT_DIR, "csv_path": CSV_PATH},
+    )

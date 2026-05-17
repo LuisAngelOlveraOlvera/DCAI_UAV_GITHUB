@@ -1,0 +1,19 @@
+2026-05-16 18:52:03,403 - Analysis_ETL - INFO - === INICIANDO ETL DE ANÁLISIS PRELIMINAR ===
+2026-05-16 18:52:03,404 - Analysis_ETL - INFO - BD de análisis anterior eliminada: analysis_metadata.sqlite
+2026-05-16 18:52:03,426 - Analysis_ETL - INFO - Imágenes detectadas en disco: 21
+2026-05-16 18:52:06,271 - Analysis_ETL - INFO - ============================================================
+2026-05-16 18:52:06,271 - Analysis_ETL - INFO - RESUMEN DE CLASIFICACIÓN DE ORIGEN (FASE 0)
+2026-05-16 18:52:06,271 - Analysis_ETL - INFO - ============================================================
+2026-05-16 18:52:06,271 - Analysis_ETL - INFO - Total Imágenes Indexadas: 21
+2026-05-16 18:52:06,271 - Analysis_ETL - INFO -    Fuente PASCAL VOC:    10 (47.6%)
+2026-05-16 18:52:06,271 - Analysis_ETL - INFO -    Fuente PROPIA:        11 (52.4%)
+2026-05-16 18:52:06,271 - Analysis_ETL - INFO -    pHash únicos (exact): 21
+2026-05-16 18:52:06,272 - Analysis_ETL - INFO -    pHash duplicados:     0
+2026-05-16 18:52:06,272 - Analysis_ETL - INFO -    Redundancia pHash %:  0.00%
+2026-05-16 18:52:06,272 - Analysis_ETL - INFO -    pHash únicos (Hamming<=1): 21
+2026-05-16 18:52:06,272 - Analysis_ETL - INFO -    Duplicados (Hamming): 0
+2026-05-16 18:52:06,272 - Analysis_ETL - INFO -    Redundancia Hamming %:0.00%
+2026-05-16 18:52:06,272 - Analysis_ETL - INFO - Imágenes corruptas/ilegibles: 0
+2026-05-16 18:52:06,272 - Analysis_ETL - INFO - Metadatos guardados en: C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\analysis_metadata.sqlite
+2026-05-16 18:52:06,272 - Analysis_ETL - INFO - ============================================================
+2026-05-16 18:52:06,272 - Analysis_ETL - INFO - Listo para ejecutar: 07_judge_scoring.py

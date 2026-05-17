@@ -12,6 +12,7 @@ Compare BASELINE and experimental models by:
 import sys
 import gc
 import re
+import argparse
 import yaml
 import torch
 import pandas as pd
@@ -31,7 +32,7 @@ import utils
 
 SCENARIOS = [
     'N1_YOLO11n',
-    'N2_B_Raw_0_yolo11n_e3,'
+    'N2_B_Raw_0_yolo11n_e3',
 ]
 
 # External datasets (sequential evaluation)
@@ -108,12 +109,37 @@ def find_best_weights(runs_dir: Path, scenarios):
 
     return weights
 
+
+def discover_available_weights(runs_dir: Path):
+    """Discover every runs/train/*/weights/best.pt checkpoint."""
+    weights = {}
+
+    if not runs_dir.exists():
+        logger.error(f"No existe el directorio runs/train: {runs_dir}")
+        return weights
+
+    run_dirs = sorted(
+        [d for d in runs_dir.iterdir() if d.is_dir()],
+        key=lambda x: x.stat().st_mtime,
+        reverse=True,
+    )
+
+    for run_dir in run_dirs:
+        best_pt = run_dir / "weights" / "best.pt"
+        if best_pt.exists():
+            weights[run_dir.name] = best_pt
+
+    return weights
+
+
 def create_test_yaml(dataset_dir: Path, yaml_path: Path):
     """
     Genera YAML temporal para YOLO (solo clase persona).
     """
     data = {
-        'path': to_project_relative(dataset_dir),
+        # Ultralytics resolves relative YAML paths under its datasets_dir setting.
+        # Use the runtime absolute path so Docker mounts remain portable.
+        'path': str(dataset_dir.resolve()),
         'train': 'images',
         'val': 'images',
         'test': 'images',
@@ -135,11 +161,199 @@ def extract_scenario_id(scenario_name: str) -> str:
         return m.group(1)
     return str(scenario_name).replace(" ", "_")
 
+
+def get_available_eval_datasets():
+    """Return configured evaluation datasets that exist on disk."""
+    return {
+        name: path
+        for name, path in TEST_DATASETS.items()
+        if path.exists()
+    }
+
+
+def resolve_eval_datasets(selection, available_datasets):
+    """Resolve dataset selection by name, index, or 'all'."""
+    if not available_datasets:
+        print(" No se encontraron datasets de evaluacion en DATASET_KAGGLE/EVALUATION.")
+        return []
+
+    if not selection or selection == ["all"]:
+        return list(available_datasets.items())
+
+    names = list(available_datasets.keys())
+    selected = []
+    missing = []
+
+    for item in selection:
+        item = item.strip()
+        if not item:
+            continue
+        if item.lower() == "all":
+            return list(available_datasets.items())
+        if item.isdigit():
+            idx = int(item) - 1
+            if 0 <= idx < len(names):
+                selected.append((names[idx], available_datasets[names[idx]]))
+            else:
+                missing.append(item)
+            continue
+
+        match = next((name for name in names if name.lower() == item.lower()), None)
+        if match:
+            selected.append((match, available_datasets[match]))
+        else:
+            missing.append(item)
+
+    if missing:
+        raise ValueError(f"Datasets de evaluacion no encontrados: {', '.join(missing)}")
+
+    return list(dict(selected).items())
+
+
+def resolve_weights(selection, available_weights):
+    """Resolve weight selection by run name, index, or 'all'."""
+    if not available_weights:
+        print(" No se encontraron pesos en runs/train/*/weights/best.pt.")
+        return []
+
+    if not selection or selection == ["all"]:
+        return list(available_weights.items())
+
+    names = list(available_weights.keys())
+    selected = []
+    missing = []
+
+    for item in selection:
+        item = item.strip()
+        if not item:
+            continue
+        if item.lower() == "all":
+            return list(available_weights.items())
+        if item.isdigit():
+            idx = int(item) - 1
+            if 0 <= idx < len(names):
+                selected.append((names[idx], available_weights[names[idx]]))
+            else:
+                missing.append(item)
+            continue
+
+        match = next((name for name in names if name.lower() == item.lower()), None)
+        if match:
+            selected.append((match, available_weights[match]))
+        else:
+            missing.append(item)
+
+    if missing:
+        raise ValueError(f"Pesos no encontrados: {', '.join(missing)}")
+
+    return list(dict(selected).items())
+
+
+def interactive_dataset_menu(available_datasets):
+    print("\nDatasets de evaluacion disponibles:")
+    for i, name in enumerate(available_datasets.keys(), start=1):
+        print(f"  [{i}] {name}")
+
+    print("\nOpciones:")
+    print("  - Escribe los numeros separados por coma (ej: 1,3)")
+    print("  - Escribe nombres separados por coma (ej: COCO_TEST,VISDRONE)")
+    print("  - Escribe 'all' para evaluar TODOS secuencialmente")
+
+    selection = input("\n Seleccion: ").strip()
+    if not selection:
+        selection = "all"
+
+    tokens = [token.strip() for token in selection.split(",")]
+    return resolve_eval_datasets(tokens, available_datasets)
+
+
+def interactive_weights_menu(available_weights):
+    print("\nPesos disponibles en runs/train:")
+    for i, (name, path) in enumerate(available_weights.items(), start=1):
+        print(f"  [{i}] {name} -> {to_project_relative(path)}")
+
+    print("\nOpciones:")
+    print("  - Escribe los numeros separados por coma (ej: 1,3)")
+    print("  - Escribe nombres de run separados por coma")
+    print("  - Escribe 'all' para evaluar TODOS secuencialmente")
+
+    selection = input("\n Seleccion de pesos: ").strip()
+    if not selection:
+        selection = "all"
+
+    tokens = [token.strip() for token in selection.split(",")]
+    return resolve_weights(tokens, available_weights)
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Evalua modelos entrenados en datasets externos."
+    )
+    parser.add_argument(
+        "--datasets",
+        nargs="+",
+        help="Datasets a evaluar por nombre, indice o 'all'. Default: menu si hay TTY; all si no hay TTY.",
+    )
+    parser.add_argument(
+        "--weights",
+        nargs="+",
+        help="Pesos a evaluar por nombre de run, indice o 'all'. Default: menu si hay TTY; escenarios configurados si no hay TTY.",
+    )
+    parser.add_argument(
+        "--list-datasets",
+        action="store_true",
+        help="Lista datasets de evaluacion disponibles y sale.",
+    )
+    parser.add_argument(
+        "--list-weights",
+        action="store_true",
+        help="Lista pesos disponibles en runs/train y sale.",
+    )
+    return parser.parse_args()
+
+
+def select_datasets_for_run(args):
+    available_datasets = get_available_eval_datasets()
+
+    if args.list_datasets:
+        print("\nDatasets de evaluacion disponibles:")
+        for i, name in enumerate(available_datasets.keys(), start=1):
+            print(f"  [{i}] {name}")
+        sys.exit(0)
+
+    if args.datasets is not None:
+        return resolve_eval_datasets(args.datasets, available_datasets)
+
+    if sys.stdin.isatty():
+        return interactive_dataset_menu(available_datasets)
+
+    return list(available_datasets.items())
+
+
+def select_weights_for_run(args):
+    runs_train_dir = config.DATASET_ROOT / "runs" / "train"
+    available_weights = discover_available_weights(runs_train_dir)
+
+    if args.list_weights:
+        print("\nPesos disponibles en runs/train:")
+        for i, (name, path) in enumerate(available_weights.items(), start=1):
+            print(f"  [{i}] {name} -> {to_project_relative(path)}")
+        sys.exit(0)
+
+    if args.weights is not None:
+        return resolve_weights(args.weights, available_weights)
+
+    if sys.stdin.isatty():
+        return interactive_weights_menu(available_weights)
+
+    configured = find_best_weights(runs_train_dir, SCENARIOS)
+    return list(configured.items())
+
 # ============================================================
 # PROCESO PRINCIPAL
 # ============================================================
 
-def run_comparison():
+def run_comparison(datasets_to_eval=None, weights_to_eval=None):
     print("\n" + "=" * 90)
     print(" EVALUACIÓN COMPARATIVA FINAL - MULTI DATASET (TESIS)")
     print("=" * 90)
@@ -149,15 +363,18 @@ def run_comparison():
     # --------------------------------------------------------
     # 1. Buscar pesos entrenados
     # --------------------------------------------------------
-    runs_train_dir = config.DATASET_ROOT / "runs" / "train"
-    weights_map = find_best_weights(runs_train_dir, SCENARIOS)
-
-    if not weights_map:
+    if weights_to_eval is None:
+        weights_to_eval = list(find_best_weights(config.DATASET_ROOT / "runs" / "train", SCENARIOS).items())
+    if not weights_to_eval:
         logger.error(" No se encontraron pesos entrenados.")
         return
 
-    datasets_to_eval = list(TEST_DATASETS.items())
-    weights_to_eval = list(weights_map.items())
+    if datasets_to_eval is None:
+        datasets_to_eval = list(get_available_eval_datasets().items())
+    if not datasets_to_eval:
+        logger.error(" No se seleccionaron datasets de evaluacion.")
+        return
+
     if SMOKE_TEST:
         datasets_to_eval = datasets_to_eval[:SMOKE_MAX_DATASETS]
         weights_to_eval = weights_to_eval[:SMOKE_MAX_SCENARIOS]
@@ -315,4 +532,5 @@ def run_comparison():
 # ============================================================
 
 if __name__ == "__main__":
-    run_comparison()
+    args = parse_args()
+    run_comparison(select_datasets_for_run(args), select_weights_for_run(args))

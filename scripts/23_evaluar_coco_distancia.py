@@ -10,6 +10,7 @@ de captura (5, 10, 15, 20, 25 metros) usando el dataset 'testing'.
 
 import sys
 import gc
+import argparse
 import yaml
 import torch
 import pandas as pd
@@ -51,6 +52,8 @@ SCENARIOS = [
     'N14_P_pH_JR_40_yolo11n_e100'
 ]
 
+SCENARIO_ALIASES = {scen.split("_")[0]: scen for scen in SCENARIOS}
+
 # Logger
 logger = utils.setup_logger(
     "Eval_Distance",
@@ -60,6 +63,22 @@ logger = utils.setup_logger(
 # ============================================================
 # FUNCIONES
 # ============================================================
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Evalua modelos por distancia con seleccion de escenarios."
+    )
+    parser.add_argument(
+        "--scenarios",
+        nargs="+",
+        help="Escenarios a evaluar por nombre, alias N# o indice. Usa 'all' para todos.",
+    )
+    parser.add_argument(
+        "--list-scenarios",
+        action="store_true",
+        help="Lista escenarios disponibles y sale.",
+    )
+    return parser.parse_args()
 
 def clean_gpu():
     if torch.cuda.is_available():
@@ -87,6 +106,55 @@ def find_best_weights(runs_dir: Path, scenarios):
             if best_pt.exists():
                 weights[scen] = best_pt
     return weights
+
+
+def resolve_scenarios(selection, available_scenarios):
+    if not available_scenarios:
+        return []
+    if not selection or selection == ["all"]:
+        return list(available_scenarios)
+
+    selected = []
+    missing = []
+    for item in selection:
+        token = str(item).strip()
+        if not token:
+            continue
+        if token.lower() == "all":
+            return list(available_scenarios)
+        if token.isdigit():
+            idx = int(token) - 1
+            if 0 <= idx < len(available_scenarios):
+                selected.append(available_scenarios[idx])
+            else:
+                missing.append(token)
+            continue
+        alias_match = SCENARIO_ALIASES.get(token.upper())
+        if alias_match and alias_match in available_scenarios:
+            selected.append(alias_match)
+            continue
+        name_match = next((name for name in available_scenarios if name.lower() == token.lower()), None)
+        if name_match:
+            selected.append(name_match)
+        else:
+            missing.append(token)
+    if missing:
+        raise ValueError(f"Escenarios no encontrados: {', '.join(missing)}")
+    return list(dict.fromkeys(selected))
+
+
+def interactive_scenario_menu(available_scenarios):
+    print("\nEscenarios disponibles para evaluacion por distancia:")
+    for i, name in enumerate(available_scenarios, start=1):
+        print(f"  [{i}] {name}")
+    print("\nOpciones:")
+    print("  - Escribe los numeros separados por coma (ej: 1,3)")
+    print("  - Escribe aliases N# separados por coma (ej: N1,N7,N11)")
+    print("  - Escribe nombres completos separados por coma")
+    print("  - Escribe 'all' para evaluar TODOS")
+    selection = input("\n Seleccion: ").strip() or "all"
+    tokens = [token.strip() for token in selection.split(",")]
+    return resolve_scenarios(tokens, available_scenarios)
 
 
 def to_project_relative(path: Path) -> str:
@@ -142,12 +210,16 @@ def prepare_distance_subsets(df, distances, output_dir):
     return subset_files
 
 def create_temp_yaml(txt_path, yaml_path):
-    """Crea un YAML temporal apuntando al txt de imágenes."""
+    """Crea un YAML temporal apuntando al txt de imagenes de forma portable."""
+    txt_rel = to_project_relative(txt_path)
     data = {
-        'path': '..',
-        'train': f"temp_distance_subsets/{txt_path.name}",
-        'val': f"temp_distance_subsets/{txt_path.name}",
-        'test': f"temp_distance_subsets/{txt_path.name}",
+        # Ultralytics puede reinterpretar rutas relativas bajo su datasets_dir interno.
+        # Anclar el YAML al root real del proyecto evita que temp_distance_subsets
+        # termine resolviendose fuera del repo en Windows o Docker.
+        'path': str(config.DATASET_ROOT.resolve()),
+        'train': txt_rel,
+        'val': txt_rel,
+        'test': txt_rel,
         'names': {0: 'person'}
     }
     
@@ -194,6 +266,14 @@ def plot_metrics_by_distance(df_results, output_dir):
         print(f"  📊 Gráfica guardada: {save_path.name}")
 
 def run_evaluation():
+    args = parse_args()
+    available_scenarios = [scen for scen in SCENARIOS]
+    if args.list_scenarios:
+        print("\nEscenarios disponibles para evaluacion por distancia:")
+        for i, name in enumerate(available_scenarios, start=1):
+            print(f"  [{i}] {name}")
+        return
+
     print("\n" + "=" * 90)
     print("📏 EVALUACIÓN POR DISTANCIA (5-25m)")
     print("=" * 90)
@@ -221,7 +301,18 @@ def run_evaluation():
 
     # 3. Buscar modelos
     runs_train_dir = config.DATASET_ROOT / "runs" / "train"
-    weights_map = find_best_weights(runs_train_dir, SCENARIOS)
+    if args.scenarios is not None:
+        selected_scenarios = resolve_scenarios(args.scenarios, available_scenarios)
+    elif sys.stdin.isatty():
+        selected_scenarios = interactive_scenario_menu(available_scenarios)
+    else:
+        selected_scenarios = available_scenarios
+
+    if not selected_scenarios:
+        logger.error("No se seleccionaron escenarios para evaluar distancia.")
+        return
+
+    weights_map = find_best_weights(runs_train_dir, selected_scenarios)
     
     if not weights_map:
         logger.error("No se encontraron modelos entrenados.")
@@ -307,4 +398,10 @@ def run_evaluation():
     print("✅ PROCESO FINALIZADO")
 
 if __name__ == "__main__":
-    run_evaluation()
+    utils.run_with_sqlite_registration(
+        script_name="23_evaluar_coco_distancia.py",
+        func=run_evaluation,
+        db_path=config.DB_PATH,
+        outputs={"csv_path": config.EXPORTS_DIR / "resultados_por_distancia.csv"},
+        extra={"temp_dir": config.DATASET_ROOT / "temp_distance_subsets"},
+    )

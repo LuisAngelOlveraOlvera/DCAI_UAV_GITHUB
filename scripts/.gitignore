@@ -1,0 +1,51 @@
+# VCS / editor noise
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Python environments and caches
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.cache/
+
+# Local datasets and generated outputs
+DATASET_KAGGLE/
+EVALUATION/
+exports/
+logs/
+runs/
+temp_distance_subsets/
+
+# Local databases and runtime artifacts
+*.sqlite
+*.sqlite3
+*.db
+
+# Model weights and exported engines
+*.pt
+*.pth
+*.onnx
+*.engine
+*.weights
+
+# Archives and videos
+*.zip
+*.rar
+*.7z
+*.tar
+*.gz
+*.mp4
+*.avi
+*.mov
+
+# Large local references
+REFERENCIAS_FINALES/

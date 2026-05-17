@@ -1,5 +1,205 @@
 # Log History
 
+## 2026-05-17
+
+### Menus seleccionables y registro SQLite para pasos 17-24
+
+- `scripts/19_doe_r4_final.py` ahora permite elegir los datasets donde se evalua R4:
+- menu interactivo si hay TTY;
+- `--datasets` para ejecucion no interactiva por nombre, indice o `all`;
+- `--list-datasets` para listar `VISDRONE`, `NTUT`, `COCO_TEST`, etc.
+- `scripts/23_evaluar_coco_distancia.py` ahora permite elegir los escenarios donde se
+  evalua distancia:
+- menu interactivo si hay TTY;
+- `--scenarios` para ejecucion no interactiva por alias `N1`, `N2`, nombre completo o `all`;
+- `--list-scenarios` para listar escenarios disponibles.
+- Se agrego registro comun en SQLite mediante `utils.run_with_sqlite_registration()` y
+  `utils.register_script_run()`.
+- Los scripts `17_doe_pipeline_reduced.py`, `18_train_seed_confirm.py`,
+  `19_doe_r4_final.py`, `20_plot_r4_seed_moments.py`,
+  `21_r4_confirmatory_stats.py`, `22_r4_tukey_shapiro.py`,
+  `23_evaluar_coco_distancia.py` y `24_distance_degradation_r4.py`
+  ahora escriben su ejecucion en `dataset_master.sqlite`, tabla:
+- `script_run_registry`
+- El registro guarda `script_name`, `status`, timestamps, duracion, `cwd`, `argv`,
+  salidas declaradas y texto de error si aplica.
+- Se ajusto el wrapper para tratar `SystemExit(0)` como salida exitosa, de modo que
+  comandos tipo `--list-datasets` tambien queden registrados.
+- Verificacion real en SQLite:
+- `17_doe_pipeline_reduced.py` -> `success`
+- `18_train_seed_confirm.py` -> `success` (`--dry_run`)
+- `19_doe_r4_final.py` -> `success` (`--list-datasets`)
+- `20_plot_r4_seed_moments.py` -> `success`
+- `21_r4_confirmatory_stats.py` -> `success`
+- `22_r4_tukey_shapiro.py` -> `success`
+- `23_evaluar_coco_distancia.py` -> `success` (`--list-scenarios`)
+- `24_distance_degradation_r4.py` -> `success` tras correccion
+
+### Compatibilidad NumPy en analisis de degradacion por distancia
+
+- `scripts/24_distance_degradation_r4.py` corregido para usar `np.trapezoid()` cuando
+  esta disponible y caer a `np.trapz()` solo como compatibilidad.
+- La causa era un fallo en entornos donde `np.trapz` ya no esta expuesto por la version
+  instalada de NumPy.
+
+### Fix portable de rutas en evaluacion por distancia
+
+- `scripts/23_evaluar_coco_distancia.py` corregido para que los YAML temporales de
+  `temp_distance_subsets/` resuelvan rutas de forma portable.
+- La causa del fallo era `create_temp_yaml()` usando `path: '..'` junto con
+  `temp_distance_subsets/subset_*.txt`; Ultralytics reinterpretaba esa combinacion fuera
+  del root del repo y terminaba buscando archivos como:
+- `C:\...\TESIS_DIC_2025\temp_distance_subsets\subset_5m.txt`
+- en vez de:
+- `C:\...\DCAI_UAV_GITHUB\temp_distance_subsets\subset_5m.txt`
+- La solucion ahora ancla el YAML al root real del proyecto calculado en runtime con:
+- `path: str(config.DATASET_ROOT.resolve())`
+- y mantiene `train`, `val` y `test` apuntando al `.txt` con ruta relativa al proyecto.
+- Esto conserva portabilidad entre entornos locales y Docker sin depender del
+  `datasets_dir` interno de Ultralytics.
+- Verificacion ejecutada con:
+- `python scripts/23_evaluar_coco_distancia.py`
+- El error original de `images not found` desaparecio y la corrida avanzo evaluando al
+  menos `N1_YOLO11n` en `5m` y `10m` correctamente antes de alcanzar el timeout del
+  entorno de automatizacion.
+
+### Fix de grafica ANOVA en R4 confirmatorio
+
+- `scripts/21_r4_confirmatory_stats.py` corregido en `plot_anova_effects()`.
+- La causa del error era el uso de etiquetas categoricas (`Term`) directamente en
+  `ax.text()` sobre un eje de barras, lo que hacia que Matplotlib fallara durante
+  `plt.tight_layout()` con:
+- `TypeError: only 0-dimensional arrays can be converted to Python scalars`
+- La solucion ahora dibuja barras y anotaciones con posiciones numericas explicitas y
+  luego asigna las etiquetas del eje X con `set_xticks()` y `set_xticklabels()`.
+- Se verifico ejecucion local exitosa con:
+- `python scripts/21_r4_confirmatory_stats.py`
+- `README.md` y `DOCKER_README.md` actualizados con la causa del fallo y la nota de que
+  el comando Docker no cambia.
+- Intento de verificacion Docker realizado, pero el daemon no estaba disponible en el
+  entorno (`//./pipe/dockerDesktopLinuxEngine` / `//./pipe/docker_engine` no encontrados),
+  por lo que la comprobacion end-to-end en contenedor queda condicionada a levantar
+  Docker Desktop o el servicio Docker del host.
+
+## 2026-05-16
+
+### Entrenamiento no interactivo en Docker
+
+- `scripts/15_training.py` ahora acepta ejecucion CLI no interactiva con:
+- `--datasets`
+- `--model`
+- `--epochs`
+- `--batch`
+- `--yes`
+- Se evita el `EOFError: EOF when reading a line` al correr Docker sin `-it`.
+- El modo interactivo se mantiene disponible ejecutando el script sin argumentos; en
+  Docker debe usarse `docker run -it`.
+- `DOCKER_README.md` y `README.md` actualizados con comandos no interactivos para el
+  paso 15 y nota del modo interactivo.
+- `scripts/15_training.py` ahora resuelve `yolo11n.pt` hacia el checkpoint local
+  `runs/train/N1_YOLO11n/weights/best.pt` antes de permitir una descarga de Ultralytics.
+- `scripts/15_training.py` ya no fuerza `device=0`; usa GPU solo cuando CUDA esta visible
+  dentro del contenedor y cae a `device=cpu` si Docker se ejecuto sin `--gpus all`.
+- El menu de modelo acepta tambien `1`, `2`, `3` como alias de `n`, `s`, `m`.
+- `scripts/07_judge_scoring.py` ahora busca `yolo11x.pt` en la raiz del proyecto montado
+  antes de caer en descarga automatica.
+- `README.md` y `DOCKER_README.md` documentan que Ultralytics descarga desde GitHub si
+  no encuentra los pesos locales, lo cual puede fallar en Docker o redes corporativas.
+
+### Seleccion de datasets en evaluacion externa
+
+- `scripts/16_evaluar_coco_persona.py` ya no queda limitado a evaluar todos los datasets
+  externos sin control del usuario.
+- Se agrego seleccion interactiva de datasets de evaluacion por indice, nombre o `all`.
+- Se agrego `--datasets` para ejecucion no interactiva en Docker, por ejemplo:
+- `python scripts/16_evaluar_coco_persona.py --datasets COCO_TEST VISDRONE`
+- Se agrego `--list-datasets` para listar los datasets externos disponibles.
+- Se agrego seleccion interactiva de pesos detectados en `runs/train/*/weights/best.pt`.
+- Se agrego `--weights` para elegir pesos por nombre de run, indice o `all`.
+- Se agrego `--list-weights` para listar pesos disponibles antes de ejecutar.
+- Los YAML temporales de evaluacion ahora escriben `path` como ruta absoluta calculada
+  en runtime para evitar que Ultralytics reinterprete rutas relativas bajo
+  `/dataset/datasets`.
+- Se corrigio el nombre de escenario `N2_B_Raw_0_yolo11n_e3` removiendo una coma
+  accidental al final.
+- `README.md` y `DOCKER_README.md` actualizados con ejemplos para evaluar todos o solo
+  algunos datasets externos y pesos especificos.
+
+### Seed confirmation training robusto
+
+- `scripts/18_train_seed_confirm.py` recibe las mismas mejoras operativas aplicadas a
+  `scripts/15_training.py`.
+- `--model` acepta `n/s/m`, `1/2/3` o nombres `.pt` soportados.
+- Se agrego `--batch`; si se omite, el batch se calcula automaticamente segun CUDA/VRAM.
+- El script usa GPU solo si CUDA esta visible dentro del contenedor; si Docker se ejecuta
+  sin `--gpus all`, cae a `device=cpu`.
+- Para `--model n`, primero intenta usar el checkpoint local
+  `runs/train/N1_YOLO11n/weights/best.pt` para evitar descargas automaticas de
+  Ultralytics/GitHub.
+- `README.md` y `DOCKER_README.md` actualizados con comandos multi-seed explicitos,
+  `--only_missing`, `--batch` y notas de GPU/pesos locales.
+
+## 2026-05-15
+
+### Seleccion de escenarios en dataset generation
+
+- `scripts/13_dataset_generation.py` ahora acepta `--scenarios` para construir solo los
+  datasets DoE deseados.
+- `--scenarios` acepta tanto nombres completos como aliases cortos definidos en
+  `config_analysis`, por ejemplo `N2` -> `N2_B_Raw_0`.
+- El comportamiento por defecto se mantiene: sin argumentos sigue construyendo todos los
+  escenarios definidos en `config_analysis.SCENARIOS`.
+- `README.md` y `DOCKER_README.md` actualizados con ejemplos para correr solo
+  `N2_B_Raw_0` o multiples escenarios.
+
+### Higiene de Git/Docker y diagnostico de carpetas grandes
+
+- Se documento el incidente donde el repositorio parecia ocupar ~33 GB por la suma de
+  `.git/objects` (~16.5 GB) y `DATASET_KAGGLE/` (~16.3 GB).
+- Se agregaron instrucciones de diagnostico Windows/PowerShell con:
+- `git count-objects -vH`
+- medicion de carpetas grandes con `Get-ChildItem`
+- medicion de `.git\objects`
+- Se documento la limpieza con `git gc --prune=now` y la verificacion posterior con
+  `git count-objects -vH`.
+- Se registro que Windows puede bloquear packs viejos dentro de `.git/objects/pack`
+  por procesos como OneDrive, VS Code, Docker Desktop, Explorer o antivirus.
+- `.dockerignore` ampliado para excluir `.github`, caches, checkpoints, modelos
+  adicionales, comprimidos y videos del contexto Docker.
+- `.gitignore` agregado para evitar versionar datasets, modelos, bases SQLite, logs,
+  resultados, videos, comprimidos, caches y ambientes virtuales.
+- `README.md` y `DOCKER_README.md` ampliados para explicar la diferencia entre
+  `.gitignore` y `.dockerignore`, y para prevenir builds con contextos de decenas de GB.
+
+### Debug de validacion humana con 10 imagenes
+
+- Se confirmo que `scripts/10_human_validation_audit.py` se mantiene sin cambios.
+- `README.md` y `DOCKER_README.md` documentan el flujo debug de 10 imagenes usando:
+- `prepare --strategy mixed_stratified --sample-size 10 --annotators 3`
+- `review --annotator-id A1`
+- `review --annotator-id A2`
+- `review --annotator-id A3`
+- `score --expected-annotators 3`
+- Se aclaro que este modo es solo para pruebas rapidas; para la validacion completa se
+  debe usar el flujo normal con `prepare` sin `--strategy mixed_stratified --sample-size 10`.
+
+### Documentacion de visualizacion interactiva Docker/X11
+
+- `README.md` actualizado con un paso previo para scripts que abren ventanas interactivas
+  con OpenCV/Qt o Matplotlib (`cv2.imshow()`, `cv2.waitKey()`, `plt.show()`).
+- `DOCKER_README.md` actualizado con la solucion aplicada para ejecutar
+  `scripts/09_analysis_bad_labels.py` desde Docker con salida grafica en el host.
+- Se documento el flujo Windows + PowerShell + XLaunch/VcXsrv:
+- instalar y abrir XLaunch/VcXsrv;
+- usar `Multiple windows`;
+- usar `Start no client`;
+- activar `Disable access control`;
+- ejecutar Docker con `DISPLAY=host.docker.internal:0.0` y `QT_X11_NO_MITSHM=1`.
+- Se documento el flujo Linux/Ubuntu:
+- habilitar acceso X11 con `xhost +local:docker`;
+- montar `/tmp/.X11-unix`;
+- pasar `DISPLAY=$DISPLAY` al contenedor.
+
 ## 2026-05-14
 
 ### Integracion de dataset Kaggle y estandarizacion Docker/README

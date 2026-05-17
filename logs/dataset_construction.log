@@ -1,0 +1,120 @@
+2026-05-16 18:56:34,291 - Dataset_Construct - INFO - STARTING DOE DATASET CONSTRUCTION
+2026-05-16 18:56:34,291 - Dataset_Construct - INFO - HAMMING_THRESHOLD=1
+2026-05-16 18:56:34,291 - Dataset_Construct - INFO - Selected scenarios: N1_Z_COCO, N2_B_Raw_0, N3_H_Raw_0, N4_H_pH_0, N5_H_JR_0, N6_H_pH_JR_0, N7_H_pH_JS_0, N8_H_pH_JR_15, N9_H_pH_JR_40, N10_H_pH_JS_40, N11_P_Raw_0, N12_P_pH_JR_0, N13_P_pH_JR_15, N14_P_pH_JR_40
+2026-05-16 18:56:34,291 - Dataset_Construct - INFO - Skipping N1_Z_COCO: metadata-only scenario.
+2026-05-16 18:56:34,291 - Dataset_Construct - INFO - 
+======================================================================
+2026-05-16 18:56:34,291 - Dataset_Construct - INFO - BUILDING SCENARIO: N2_B_Raw_0
+2026-05-16 18:56:34,293 - Dataset_Construct - INFO - ID=N2 | MODEL=B_Raw_0 | DESC=N2 | B_Raw_0 | domain=BASELINE | pHash=False | judge=0.0 | noise=0% | TL=True
+2026-05-16 18:56:34,293 - Dataset_Construct - INFO - ======================================================================
+2026-05-16 18:56:34,319 - Dataset_Construct - INFO - Split: Train=8, Val=1, Test=1
+2026-05-16 18:56:34,406 - Dataset_Construct - INFO - Scenario N2_B_Raw_0 finished at: C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\N2_B_Raw_0
+2026-05-16 18:56:34,406 - Dataset_Construct - INFO - 
+======================================================================
+2026-05-16 18:56:34,406 - Dataset_Construct - INFO - BUILDING SCENARIO: N3_H_Raw_0
+2026-05-16 18:56:34,406 - Dataset_Construct - INFO - ID=N3 | MODEL=H_Raw_0 | DESC=N3 | H_Raw_0 | domain=HYBRID | pHash=False | judge=0.0 | noise=0% | TL=True
+2026-05-16 18:56:34,406 - Dataset_Construct - INFO - ======================================================================
+2026-05-16 18:56:34,435 - Dataset_Construct - INFO - Split: Train=16, Val=2, Test=3
+2026-05-16 18:56:34,702 - Dataset_Construct - INFO - Scenario N3_H_Raw_0 finished at: C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\N3_H_Raw_0
+2026-05-16 18:56:34,702 - Dataset_Construct - INFO - 
+======================================================================
+2026-05-16 18:56:34,702 - Dataset_Construct - INFO - BUILDING SCENARIO: N4_H_pH_0
+2026-05-16 18:56:34,702 - Dataset_Construct - INFO - ID=N4 | MODEL=H_pH_0 | DESC=N4 | H_pH_0 | domain=HYBRID | pHash=True | judge=0.0 | noise=0% | TL=True
+2026-05-16 18:56:34,702 - Dataset_Construct - INFO - ======================================================================
+2026-05-16 18:56:34,752 - Dataset_Construct - INFO - Dedup (precomputed Hamming<=1): 21 -> 21
+2026-05-16 18:56:34,752 - Dataset_Construct - INFO - Split: Train=16, Val=2, Test=3
+2026-05-16 18:56:35,005 - Dataset_Construct - INFO - Scenario N4_H_pH_0 finished at: C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\N4_H_pH_0
+2026-05-16 18:56:35,005 - Dataset_Construct - INFO - 
+======================================================================
+2026-05-16 18:56:35,005 - Dataset_Construct - INFO - BUILDING SCENARIO: N5_H_JR_0
+2026-05-16 18:56:35,005 - Dataset_Construct - INFO - ID=N5 | MODEL=H_JR_0 | DESC=N5 | H_JR_0 | domain=HYBRID | pHash=False | judge=0.35 | noise=0% | TL=True
+2026-05-16 18:56:35,005 - Dataset_Construct - INFO - ======================================================================
+2026-05-16 18:56:35,016 - Dataset_Construct - INFO - Split: Train=16, Val=2, Test=3
+2026-05-16 18:56:35,180 - Dataset_Construct - INFO - Scenario N5_H_JR_0 finished at: C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\N5_H_JR_0
+2026-05-16 18:56:35,181 - Dataset_Construct - INFO - 
+======================================================================
+2026-05-16 18:56:35,181 - Dataset_Construct - INFO - BUILDING SCENARIO: N6_H_pH_JR_0
+2026-05-16 18:56:35,181 - Dataset_Construct - INFO - ID=N6 | MODEL=H_pH_JR_0 | DESC=N6 | H_pH_JR_0 | domain=HYBRID | pHash=True | judge=0.35 | noise=0% | TL=True
+2026-05-16 18:56:35,181 - Dataset_Construct - INFO - ======================================================================
+2026-05-16 18:56:35,249 - Dataset_Construct - INFO - Dedup (precomputed Hamming<=1): 21 -> 21
+2026-05-16 18:56:35,250 - Dataset_Construct - INFO - Split: Train=16, Val=2, Test=3
+2026-05-16 18:56:35,495 - Dataset_Construct - INFO - Scenario N6_H_pH_JR_0 finished at: C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\N6_H_pH_JR_0
+2026-05-16 18:56:35,497 - Dataset_Construct - INFO - 
+======================================================================
+2026-05-16 18:56:35,497 - Dataset_Construct - INFO - BUILDING SCENARIO: N7_H_pH_JS_0
+2026-05-16 18:56:35,497 - Dataset_Construct - INFO - ID=N7 | MODEL=H_pH_JS_0 | DESC=N7 | H_pH_JS_0 | domain=HYBRID | pHash=True | judge=0.65 | noise=0% | TL=True
+2026-05-16 18:56:35,497 - Dataset_Construct - INFO - ======================================================================
+2026-05-16 18:56:35,506 - Dataset_Construct - INFO - Dedup (precomputed Hamming<=1): 21 -> 21
+2026-05-16 18:56:35,506 - Dataset_Construct - INFO - Split: Train=16, Val=2, Test=3
+2026-05-16 18:56:35,571 - Dataset_Construct - INFO - Scenario N7_H_pH_JS_0 finished at: C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\N7_H_pH_JS_0
+2026-05-16 18:56:35,571 - Dataset_Construct - INFO - 
+======================================================================
+2026-05-16 18:56:35,572 - Dataset_Construct - INFO - BUILDING SCENARIO: N8_H_pH_JR_15
+2026-05-16 18:56:35,572 - Dataset_Construct - INFO - ID=N8 | MODEL=H_pH_JR_15 | DESC=N8 | H_pH_JR_15 | domain=HYBRID | pHash=True | judge=0.35 | noise=15% | TL=True
+2026-05-16 18:56:35,572 - Dataset_Construct - INFO - ======================================================================
+2026-05-16 18:56:35,582 - Dataset_Construct - INFO - Dedup (precomputed Hamming<=1): 21 -> 21
+2026-05-16 18:56:35,584 - Dataset_Construct - INFO - Split: Train=16, Val=2, Test=3
+2026-05-16 18:56:35,643 - Dataset_Construct - INFO - Injecting synthetic noise in TRAIN: 15%
+2026-05-16 18:56:35,653 - Dataset_Construct - INFO - Noise images added to TRAIN: 2
+2026-05-16 18:56:35,653 - Dataset_Construct - INFO - Scenario N8_H_pH_JR_15 finished at: C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\N8_H_pH_JR_15
+2026-05-16 18:56:35,653 - Dataset_Construct - INFO - 
+======================================================================
+2026-05-16 18:56:35,655 - Dataset_Construct - INFO - BUILDING SCENARIO: N9_H_pH_JR_40
+2026-05-16 18:56:35,655 - Dataset_Construct - INFO - ID=N9 | MODEL=H_pH_JR_40 | DESC=N9 | H_pH_JR_40 | domain=HYBRID | pHash=True | judge=0.35 | noise=40% | TL=True
+2026-05-16 18:56:35,655 - Dataset_Construct - INFO - ======================================================================
+2026-05-16 18:56:35,665 - Dataset_Construct - INFO - Dedup (precomputed Hamming<=1): 21 -> 21
+2026-05-16 18:56:35,666 - Dataset_Construct - INFO - Split: Train=16, Val=2, Test=3
+2026-05-16 18:56:35,726 - Dataset_Construct - INFO - Injecting synthetic noise in TRAIN: 40%
+2026-05-16 18:56:35,744 - Dataset_Construct - INFO - Noise images added to TRAIN: 6
+2026-05-16 18:56:35,746 - Dataset_Construct - INFO - Scenario N9_H_pH_JR_40 finished at: C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\N9_H_pH_JR_40
+2026-05-16 18:56:35,746 - Dataset_Construct - INFO - 
+======================================================================
+2026-05-16 18:56:35,746 - Dataset_Construct - INFO - BUILDING SCENARIO: N10_H_pH_JS_40
+2026-05-16 18:56:35,746 - Dataset_Construct - INFO - ID=N10 | MODEL=H_pH_JS_40 | DESC=N10 | H_pH_JS_40 | domain=HYBRID | pHash=True | judge=0.65 | noise=40% | TL=True
+2026-05-16 18:56:35,747 - Dataset_Construct - INFO - ======================================================================
+2026-05-16 18:56:35,758 - Dataset_Construct - INFO - Dedup (precomputed Hamming<=1): 21 -> 21
+2026-05-16 18:56:35,759 - Dataset_Construct - INFO - Split: Train=16, Val=2, Test=3
+2026-05-16 18:56:35,819 - Dataset_Construct - INFO - Injecting synthetic noise in TRAIN: 40%
+2026-05-16 18:56:35,838 - Dataset_Construct - INFO - Noise images added to TRAIN: 6
+2026-05-16 18:56:35,839 - Dataset_Construct - INFO - Scenario N10_H_pH_JS_40 finished at: C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\N10_H_pH_JS_40
+2026-05-16 18:56:35,839 - Dataset_Construct - INFO - 
+======================================================================
+2026-05-16 18:56:35,839 - Dataset_Construct - INFO - BUILDING SCENARIO: N11_P_Raw_0
+2026-05-16 18:56:35,839 - Dataset_Construct - INFO - ID=N11 | MODEL=P_Raw_0 | DESC=N11 | P_Raw_0 | domain=PROPRIETARY | pHash=False | judge=0.0 | noise=0% | TL=True
+2026-05-16 18:56:35,839 - Dataset_Construct - INFO - ======================================================================
+2026-05-16 18:56:35,848 - Dataset_Construct - INFO - Split: Train=8, Val=1, Test=2
+2026-05-16 18:56:35,887 - Dataset_Construct - INFO - Scenario N11_P_Raw_0 finished at: C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\N11_P_Raw_0
+2026-05-16 18:56:35,887 - Dataset_Construct - INFO - 
+======================================================================
+2026-05-16 18:56:35,887 - Dataset_Construct - INFO - BUILDING SCENARIO: N12_P_pH_JR_0
+2026-05-16 18:56:35,887 - Dataset_Construct - INFO - ID=N12 | MODEL=P_pH_JR_0 | DESC=N12 | P_pH_JR_0 | domain=PROPRIETARY | pHash=True | judge=0.35 | noise=0% | TL=True
+2026-05-16 18:56:35,887 - Dataset_Construct - INFO - ======================================================================
+2026-05-16 18:56:35,901 - Dataset_Construct - INFO - Dedup (precomputed Hamming<=1): 11 -> 11
+2026-05-16 18:56:35,902 - Dataset_Construct - INFO - Split: Train=8, Val=1, Test=2
+2026-05-16 18:56:35,942 - Dataset_Construct - INFO - Scenario N12_P_pH_JR_0 finished at: C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\N12_P_pH_JR_0
+2026-05-16 18:56:35,943 - Dataset_Construct - INFO - 
+======================================================================
+2026-05-16 18:56:35,943 - Dataset_Construct - INFO - BUILDING SCENARIO: N13_P_pH_JR_15
+2026-05-16 18:56:35,943 - Dataset_Construct - INFO - ID=N13 | MODEL=P_pH_JR_15 | DESC=N13 | P_pH_JR_15 | domain=PROPRIETARY | pHash=True | judge=0.35 | noise=15% | TL=True
+2026-05-16 18:56:35,943 - Dataset_Construct - INFO - ======================================================================
+2026-05-16 18:56:35,955 - Dataset_Construct - INFO - Dedup (precomputed Hamming<=1): 11 -> 11
+2026-05-16 18:56:35,955 - Dataset_Construct - INFO - Split: Train=8, Val=1, Test=2
+2026-05-16 18:56:35,992 - Dataset_Construct - INFO - Injecting synthetic noise in TRAIN: 15%
+2026-05-16 18:56:35,998 - Dataset_Construct - INFO - Noise images added to TRAIN: 1
+2026-05-16 18:56:35,998 - Dataset_Construct - INFO - Scenario N13_P_pH_JR_15 finished at: C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\N13_P_pH_JR_15
+2026-05-16 18:56:35,999 - Dataset_Construct - INFO - 
+======================================================================
+2026-05-16 18:56:35,999 - Dataset_Construct - INFO - BUILDING SCENARIO: N14_P_pH_JR_40
+2026-05-16 18:56:35,999 - Dataset_Construct - INFO - ID=N14 | MODEL=P_pH_JR_40 | DESC=N14 | P_pH_JR_40 | domain=PROPRIETARY | pHash=True | judge=0.35 | noise=40% | TL=True
+2026-05-16 18:56:35,999 - Dataset_Construct - INFO - ======================================================================
+2026-05-16 18:56:36,010 - Dataset_Construct - INFO - Dedup (precomputed Hamming<=1): 11 -> 11
+2026-05-16 18:56:36,011 - Dataset_Construct - INFO - Split: Train=8, Val=1, Test=2
+2026-05-16 18:56:36,051 - Dataset_Construct - INFO - Injecting synthetic noise in TRAIN: 40%
+2026-05-16 18:56:36,061 - Dataset_Construct - INFO - Noise images added to TRAIN: 3
+2026-05-16 18:56:36,063 - Dataset_Construct - INFO - Scenario N14_P_pH_JR_40 finished at: C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\N14_P_pH_JR_40
+2026-05-16 18:56:36,072 - Dataset_Construct - INFO - SQLite timing report saved: C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\sqlite_timing_report.csv | KPI<30s passed: 14/14
+2026-05-16 18:56:36,072 - Dataset_Construct - INFO - 
+======================================================================
+2026-05-16 18:56:36,072 - Dataset_Construct - INFO - DONE. Built=13, Skipped metadata-only=1
+2026-05-16 18:56:36,072 - Dataset_Construct - INFO - Output root: C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports
+2026-05-16 18:56:36,072 - Dataset_Construct - INFO - ======================================================================

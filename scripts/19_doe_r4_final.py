@@ -12,8 +12,10 @@ from __future__ import annotations
 
 import gc
 import re
+import sys
+import argparse
 from pathlib import Path
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -105,6 +107,84 @@ N_TO_CANONICAL = {
 
 
 CANONICAL_TO_N = {v: k for k, v in N_TO_CANONICAL.items()}
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Seleccion final R4 con evaluacion multidominio.")
+    parser.add_argument(
+        "--datasets",
+        nargs="+",
+        help="Datasets a evaluar por nombre, indice o 'all'. Default: menu si hay TTY; all si no hay TTY.",
+    )
+    parser.add_argument(
+        "--list-datasets",
+        action="store_true",
+        help="Lista datasets de evaluacion disponibles y sale.",
+    )
+    return parser.parse_args()
+
+
+def get_available_eval_datasets() -> Dict[str, Path]:
+    return {name: path for name, path in TEST_DATASETS.items() if path.exists()}
+
+
+def resolve_eval_datasets(selection: List[str] | None, available: Dict[str, Path]) -> List[Tuple[str, Path]]:
+    if not available:
+        return []
+    if not selection or selection == ["all"]:
+        return list(available.items())
+
+    names = list(available.keys())
+    selected = []
+    missing = []
+    for item in selection:
+        token = str(item).strip()
+        if not token:
+            continue
+        if token.lower() == "all":
+            return list(available.items())
+        if token.isdigit():
+            idx = int(token) - 1
+            if 0 <= idx < len(names):
+                selected.append((names[idx], available[names[idx]]))
+            else:
+                missing.append(token)
+            continue
+        match = next((name for name in names if name.lower() == token.lower()), None)
+        if match is None:
+            missing.append(token)
+        else:
+            selected.append((match, available[match]))
+    if missing:
+        raise ValueError(f"Datasets de evaluacion no encontrados: {', '.join(missing)}")
+    return list(dict(selected).items())
+
+
+def interactive_dataset_menu(available: Dict[str, Path]) -> List[Tuple[str, Path]]:
+    print("\nDatasets de evaluacion disponibles para R4:")
+    for i, name in enumerate(available.keys(), start=1):
+        print(f"  [{i}] {name}")
+    print("\nOpciones:")
+    print("  - Escribe los numeros separados por coma (ej: 1,3)")
+    print("  - Escribe nombres separados por coma (ej: VISDRONE,NTUT)")
+    print("  - Escribe 'all' para evaluar TODOS")
+    selection = input("\n Seleccion: ").strip() or "all"
+    tokens = [token.strip() for token in selection.split(",")]
+    return resolve_eval_datasets(tokens, available)
+
+
+def select_datasets_for_run(args: argparse.Namespace) -> List[Tuple[str, Path]]:
+    available = get_available_eval_datasets()
+    if args.list_datasets:
+        print("\nDatasets de evaluacion disponibles para R4:")
+        for i, name in enumerate(available.keys(), start=1):
+            print(f"  [{i}] {name}")
+        sys.exit(0)
+    if args.datasets is not None:
+        return resolve_eval_datasets(args.datasets, available)
+    if sys.stdin.isatty():
+        return interactive_dataset_menu(available)
+    return list(available.items())
 
 
 def normalize_scenario(raw_name: str) -> str:
@@ -215,7 +295,7 @@ def discover_r4_weights() -> pd.DataFrame:
     return df
 
 
-def evaluate_weights_multidomain(weights_df: pd.DataFrame) -> pd.DataFrame:
+def evaluate_weights_multidomain(weights_df: pd.DataFrame, selected_datasets: List[Tuple[str, Path]]) -> pd.DataFrame:
     """
     Evaluate each best.pt from RONDA_4 on all configured test domains.
     No input CSV is used as source of truth.
@@ -233,11 +313,7 @@ def evaluate_weights_multidomain(weights_df: pd.DataFrame) -> pd.DataFrame:
             logger.info(f"Cache de evaluaciÃ³n cargado: {RAW_EVAL_CSV} ({len(done_keys)} combinaciones)")
 
     device = 0 if torch.cuda.is_available() else "cpu"
-    for dataset_name, dataset_path in TEST_DATASETS.items():
-        if not dataset_path.exists():
-            logger.warning(f"Dataset no encontrado, se omite: {dataset_name} -> {dataset_path}")
-            continue
-
+    for dataset_name, dataset_path in selected_datasets:
         yaml_path = create_test_yaml(dataset_path, TMP_YAML_DIR / f"r4_eval_{dataset_name.lower()}.yaml")
         for _, wr in weights_df.iterrows():
             key = (dataset_name, str(wr["run_name"]))
@@ -719,12 +795,17 @@ def make_score_table(scored_all: pd.DataFrame, tau_r: float | None) -> pd.DataFr
 
 
 def run_r4_final() -> None:
+    args = parse_args()
     if not R4_FINALISTS:
         raise ValueError("R4_FINALISTS estÃ¡ vacÃ­o. Define finalistas de R0-R3.")
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     FIGS_DIR.mkdir(parents=True, exist_ok=True)
     TMP_YAML_DIR.mkdir(parents=True, exist_ok=True)
+
+    selected_datasets = select_datasets_for_run(args)
+    if not selected_datasets:
+        raise ValueError("No se seleccionaron datasets de evaluacion para R4.")
 
     weights_df = discover_r4_weights()
     weights_df = weights_df[weights_df[SCENARIO_COL].isin(R4_FINALISTS)].copy()
@@ -742,7 +823,7 @@ def run_r4_final() -> None:
         .to_dict()
     )
 
-    df_raw = evaluate_weights_multidomain(weights_df)
+    df_raw = evaluate_weights_multidomain(weights_df, selected_datasets)
     df_r4_raw = df_raw[df_raw[SCENARIO_COL].isin(R4_FINALISTS)].copy()
 
     present_scenarios = set(df_r4_raw[SCENARIO_COL].unique().tolist())
@@ -810,6 +891,7 @@ def run_r4_final() -> None:
         f.write(f"{R4_NAME} - Seleccion final\n")
         f.write("=============================\n\n")
         f.write(f"Fuente de datos: evaluacion directa de pesos en {R4_RUNS_DIR}\n")
+        f.write(f"Datasets evaluados: {[name for name, _ in selected_datasets]}\n")
         f.write(f"Finalistas: {R4_FINALISTS}\n")
         f.write(f"ModelIDs finalistas: {sorted(set(weights_df[MODEL_ID_COL].astype(str).tolist()))}\n")
         f.write(f"Semillas esperadas R4: {sorted(EXPECTED_R4_SEEDS)}\n")
@@ -828,4 +910,10 @@ def run_r4_final() -> None:
 
 
 if __name__ == "__main__":
-    run_r4_final()
+    utils.run_with_sqlite_registration(
+        script_name="19_doe_r4_final.py",
+        func=run_r4_final,
+        db_path=config.DB_PATH,
+        outputs={"out_dir": OUT_DIR},
+        extra={"r4_runs_dir": R4_RUNS_DIR},
+    )

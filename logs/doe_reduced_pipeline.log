@@ -1,0 +1,32 @@
+2026-05-16 19:33:25,179 - DOE_Reduced - INFO - Master CSV loaded: C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\thesis_results_all_datasets.csv
+2026-05-16 19:33:25,213 - DOE_Reduced - INFO - Completeness exportado: C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\doe_reduced\global\doe_round_completeness_reduced.csv
+2026-05-16 19:33:25,225 - DOE_Reduced - INFO - Resumen por rondas exportado: C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\doe_reduced\global\doe_round_summary_reduced.csv
+2026-05-16 19:33:25,235 - DOE_Reduced - INFO - Delta vs baseline exportado: C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\doe_reduced\global\doe_delta_vs_baseline_reduced.csv
+2026-05-16 19:33:51,898 - DOE_Reduced - INFO - R0 reference Z_COCO: {'mAP50-95_mean': '0.4049', 'mAP50-95_min': '0.0294', 'mAP50_mean': '0.5263', 'mAP50_min': '0.0318', 'Precision_mean': '0.6148', 'Precision_min': '0.2966', 'Recall_mean': '0.5208', 'Recall_min': '0.0204'}
+2026-05-16 19:33:51,898 - DOE_Reduced - INFO - R0 reference B_Raw_0: {'mAP50-95_mean': '0.4098', 'mAP50-95_min': '0.0003', 'mAP50_mean': '0.5301', 'mAP50_min': '0.0009', 'Precision_mean': '0.5635', 'Precision_min': '0.0014', 'Recall_mean': '0.5391', 'Recall_min': '0.0204'}
+2026-05-16 19:33:51,907 - DOE_Reduced - INFO - R1 survivors (2): ['H_JR_0', 'H_pH_0']
+2026-05-16 19:33:51,907 - DOE_Reduced - INFO - R1 scores: {'H_JR_0': '0.2655', 'H_pH_0': '0.2610'}
+2026-05-16 19:33:51,910 - DOE_Reduced - INFO - R2 survivors (2): ['H_pH_JS_40', 'H_pH_JR_15']
+2026-05-16 19:33:51,910 - DOE_Reduced - INFO - R2 scores: {'H_pH_JS_40': '0.2738', 'H_pH_JR_15': '0.2631'}
+2026-05-16 19:33:51,915 - DOE_Reduced - INFO - R3 survivors (3): ['P_pH_JR_0', 'P_pH_JR_15', 'P_pH_JR_40']
+2026-05-16 19:33:51,915 - DOE_Reduced - INFO - R3 scores: {'P_pH_JR_0': '0.2105', 'P_pH_JR_15': '0.2083', 'P_pH_JR_40': '0.2068'}
+2026-05-16 19:33:51,915 - DOE_Reduced - INFO - R4 finalists assembled (6): ['B_Raw_0', 'H_JR_0', 'H_pH_JS_40', 'P_pH_JR_0', 'P_pH_JR_15', 'P_pH_JR_40']
+2026-05-16 19:33:51,916 - DOE_Reduced - INFO - Sobrevivientes por ronda exportados: C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\doe_reduced\global\doe_round_survivors.csv
+2026-05-16 19:33:51,916 - DOE_Reduced - INFO - R4 finalists exportados: C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\doe_reduced\global\doe_r4_finalists.csv
+2026-05-16 19:33:51,925 - DOE_Reduced - INFO - Ranking post-R3 exportado: C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\doe_reduced\global\doe_post_r3_ranking_reduced.csv
+2026-05-17 10:07:26,703 - DOE_Reduced - INFO - Master CSV loaded: C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\thesis_results_all_datasets.csv
+2026-05-17 10:07:26,718 - DOE_Reduced - INFO - Completeness exportado: C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\doe_reduced\global\doe_round_completeness_reduced.csv
+2026-05-17 10:07:26,723 - DOE_Reduced - INFO - Resumen por rondas exportado: C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\doe_reduced\global\doe_round_summary_reduced.csv
+2026-05-17 10:07:26,732 - DOE_Reduced - INFO - Delta vs baseline exportado: C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\doe_reduced\global\doe_delta_vs_baseline_reduced.csv
+2026-05-17 10:07:52,212 - DOE_Reduced - INFO - R0 reference Z_COCO: {'mAP50-95_mean': '0.4049', 'mAP50-95_min': '0.0294', 'mAP50_mean': '0.5263', 'mAP50_min': '0.0318', 'Precision_mean': '0.6148', 'Precision_min': '0.2966', 'Recall_mean': '0.5208', 'Recall_min': '0.0204'}
+2026-05-17 10:07:52,214 - DOE_Reduced - INFO - R0 reference B_Raw_0: {'mAP50-95_mean': '0.4098', 'mAP50-95_min': '0.0003', 'mAP50_mean': '0.5301', 'mAP50_min': '0.0009', 'Precision_mean': '0.5635', 'Precision_min': '0.0014', 'Recall_mean': '0.5391', 'Recall_min': '0.0204'}
+2026-05-17 10:07:52,217 - DOE_Reduced - INFO - R1 survivors (2): ['H_JR_0', 'H_pH_0']
+2026-05-17 10:07:52,217 - DOE_Reduced - INFO - R1 scores: {'H_JR_0': '0.2655', 'H_pH_0': '0.2610'}
+2026-05-17 10:07:52,220 - DOE_Reduced - INFO - R2 survivors (2): ['H_pH_JS_40', 'H_pH_JR_15']
+2026-05-17 10:07:52,220 - DOE_Reduced - INFO - R2 scores: {'H_pH_JS_40': '0.2738', 'H_pH_JR_15': '0.2631'}
+2026-05-17 10:07:52,225 - DOE_Reduced - INFO - R3 survivors (3): ['P_pH_JR_0', 'P_pH_JR_15', 'P_pH_JR_40']
+2026-05-17 10:07:52,225 - DOE_Reduced - INFO - R3 scores: {'P_pH_JR_0': '0.2105', 'P_pH_JR_15': '0.2083', 'P_pH_JR_40': '0.2068'}
+2026-05-17 10:07:52,225 - DOE_Reduced - INFO - R4 finalists assembled (6): ['B_Raw_0', 'H_JR_0', 'H_pH_JS_40', 'P_pH_JR_0', 'P_pH_JR_15', 'P_pH_JR_40']
+2026-05-17 10:07:52,227 - DOE_Reduced - INFO - Sobrevivientes por ronda exportados: C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\doe_reduced\global\doe_round_survivors.csv
+2026-05-17 10:07:52,228 - DOE_Reduced - INFO - R4 finalists exportados: C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\doe_reduced\global\doe_r4_finalists.csv
+2026-05-17 10:07:52,234 - DOE_Reduced - INFO - Ranking post-R3 exportado: C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\doe_reduced\global\doe_post_r3_ranking_reduced.csv

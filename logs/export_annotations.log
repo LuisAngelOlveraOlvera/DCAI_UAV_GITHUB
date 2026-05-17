@@ -1,0 +1,32 @@
+2026-05-16 18:53:00,485 - ExportAnnotations - INFO - === INICIANDO EXPORTACIÓN MULTI-FORMATO ===
+2026-05-16 18:53:00,485 - ExportAnnotations - INFO - Exportando a formato YOLO...
+2026-05-16 18:53:00,500 - ExportAnnotations - INFO -  YOLO: 21 archivos .txt generados
+2026-05-16 18:53:00,500 - ExportAnnotations - INFO - Exportando a formato COCO...
+2026-05-16 18:53:00,509 - ExportAnnotations - INFO -  COCO: 21 imágenes, 134 anotaciones
+2026-05-16 18:53:00,509 - ExportAnnotations - INFO - Exportando a formato Pascal VOC...
+2026-05-16 18:53:00,529 - ExportAnnotations - INFO -  Pascal VOC: 21 archivos .xml generados
+2026-05-16 18:53:00,531 - ExportAnnotations - INFO - Exportando metadatos para TensorFlow...
+2026-05-16 18:53:00,538 - ExportAnnotations - INFO -  TensorFlow: Metadata JSON generado (21 imágenes)
+2026-05-16 18:53:00,538 - ExportAnnotations - INFO -   (Para TFRecord usar: tensorflow/object_detection/dataset_tools/create_coco_tf_record.py)
+2026-05-16 18:53:00,538 - ExportAnnotations - INFO - Exportando a formato PyTorch...
+2026-05-16 18:53:00,546 - ExportAnnotations - INFO -  PyTorch: 21 imágenes serializadas
+2026-05-16 18:53:00,546 - ExportAnnotations - INFO - Exportando a formato CSV...
+2026-05-16 18:53:00,551 - ExportAnnotations - INFO -  CSV: 134 filas exportadas
+2026-05-16 18:53:00,551 - ExportAnnotations - INFO - Exportando a formato Detectron2...
+2026-05-16 18:53:00,558 - ExportAnnotations - INFO -  Detectron2: 21 registros generados
+2026-05-16 18:53:00,559 - ExportAnnotations - INFO - Exportando a formato CreateML...
+2026-05-16 18:53:00,566 - ExportAnnotations - INFO -  CreateML: 21 imágenes anotadas
+2026-05-16 18:53:00,566 - ExportAnnotations - INFO - ============================================================
+2026-05-16 18:53:00,566 - ExportAnnotations - INFO - RESUMEN DE EXPORTACIÓN
+2026-05-16 18:53:00,566 - ExportAnnotations - INFO - ============================================================
+2026-05-16 18:53:00,566 - ExportAnnotations - INFO -  YOLO:        C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\yolo
+2026-05-16 18:53:00,567 - ExportAnnotations - INFO -  COCO:        C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\coco
+2026-05-16 18:53:00,567 - ExportAnnotations - INFO -  Pascal VOC:  C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\pascal_voc
+2026-05-16 18:53:00,567 - ExportAnnotations - INFO -  TensorFlow:  C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\tensorflow
+2026-05-16 18:53:00,567 - ExportAnnotations - INFO -  PyTorch:     C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\pytorch
+2026-05-16 18:53:00,568 - ExportAnnotations - INFO -  CSV:         C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\csv
+2026-05-16 18:53:00,568 - ExportAnnotations - INFO -  Detectron2:  C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\detectron2
+2026-05-16 18:53:00,568 - ExportAnnotations - INFO -  CreateML:    C:\Users\User\Documents\JUPYTER_LOCAL\IMAGENES_ENTRENAMIENTO\DETECCION\TESIS_DIC_2025\DCAI_UAV_GITHUB\exports\createml
+2026-05-16 18:53:00,568 - ExportAnnotations - INFO - ============================================================
+2026-05-16 18:53:00,569 - ExportAnnotations - INFO -  EXPORTACIÓN MULTI-FORMATO COMPLETADA
+2026-05-16 18:53:00,569 - ExportAnnotations - INFO - ============================================================

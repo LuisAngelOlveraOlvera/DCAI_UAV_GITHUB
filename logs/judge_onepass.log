@@ -1,0 +1,15 @@
+2026-05-16 18:53:19,276 - Judge_OnePass - INFO - === INICIANDO JUDGE ONE-PASS (SCORING + QA) ===
+2026-05-16 18:53:19,313 - Judge_OnePass - INFO - CUDA disponible: Sí | GPU: NVIDIA GeForce RTX 3060 Laptop GPU
+2026-05-16 18:53:19,313 - Judge_OnePass - INFO - IOU_THRESHOLD=0.5 | CONF_THRESHOLD=0.35
+2026-05-16 18:53:26,371 - Judge_OnePass - INFO - Modelo cargado: yolo11x.pt
+2026-05-16 18:53:26,375 - Judge_OnePass - INFO - GT indexado: 21 imágenes
+2026-05-16 18:53:26,407 - Judge_OnePass - INFO - Pendientes: 21
+2026-05-16 18:53:30,429 - Judge_OnePass - INFO - ============================================================
+2026-05-16 18:53:30,430 - Judge_OnePass - INFO - RESUMEN QA (ONE-PASS)
+2026-05-16 18:53:30,430 - Judge_OnePass - INFO - ok=21
+2026-05-16 18:53:30,430 - Judge_OnePass - INFO - missing_label=0
+2026-05-16 18:53:30,430 - Judge_OnePass - INFO - bad_label=0
+2026-05-16 18:53:30,430 - Judge_OnePass - INFO - poor_alignment=0
+2026-05-16 18:53:30,430 - Judge_OnePass - INFO - unknown=0
+2026-05-16 18:53:30,432 - Judge_OnePass - INFO - Listo para: python 08_qa_audit.py
+2026-05-16 18:53:30,432 - Judge_OnePass - INFO - ============================================================

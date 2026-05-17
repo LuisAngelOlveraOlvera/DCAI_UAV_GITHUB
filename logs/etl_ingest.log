@@ -1,0 +1,15 @@
+2026-05-16 18:52:36,635 - ETL_Ingest - INFO - === INICIANDO ETL PORTABLE ===
+2026-05-16 18:52:36,636 - ETL_Ingest - INFO - BD anterior eliminada.
+2026-05-16 18:52:36,654 - ETL_Ingest - INFO - Imágenes encontradas: 21
+2026-05-16 18:52:36,720 - ETL_Ingest - INFO - =======================================================
+2026-05-16 18:52:36,720 - ETL_Ingest - INFO - REPORTE DE INGENIERÍA DE DATOS (OBJ 1)
+2026-05-16 18:52:36,720 - ETL_Ingest - INFO - =======================================================
+2026-05-16 18:52:36,720 - ETL_Ingest - INFO - Imágenes totales: 21
+2026-05-16 18:52:36,722 - ETL_Ingest - INFO - Imágenes únicas (Hamming<=1): 21
+2026-05-16 18:52:36,722 - ETL_Ingest - INFO - Duplicados: 0
+2026-05-16 18:52:36,722 - ETL_Ingest - INFO - Tasa de redundancia: 0.00%
+2026-05-16 18:52:36,722 - ETL_Ingest - INFO - Etiquetas (clase 0): 134
+2026-05-16 18:52:36,722 - ETL_Ingest - INFO - Imágenes sin label: 0
+2026-05-16 18:52:36,722 - ETL_Ingest - INFO - Imágenes sin pHash reutilizable: 0
+2026-05-16 18:52:36,722 - ETL_Ingest - INFO - =======================================================
+2026-05-16 18:52:36,722 - ETL_Ingest - INFO - ETL finalizado correctamente.

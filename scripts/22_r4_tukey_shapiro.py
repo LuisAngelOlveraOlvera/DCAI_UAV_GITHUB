@@ -577,4 +577,9 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    utils.run_with_sqlite_registration(
+        script_name="22_r4_tukey_shapiro.py",
+        func=main,
+        db_path=config.DB_PATH,
+        outputs={"default_out_dir": config.EXPORTS_DIR / R4_NAME / f"{R4_NAME}_tukey_shapiro"},
+    )

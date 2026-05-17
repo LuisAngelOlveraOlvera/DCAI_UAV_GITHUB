@@ -933,4 +933,9 @@ def run_doe_pipeline() -> None:
 
 
 if __name__ == "__main__":
-    run_doe_pipeline()
+    utils.run_with_sqlite_registration(
+        script_name="17_doe_pipeline_reduced.py",
+        func=run_doe_pipeline,
+        db_path=config.DB_PATH,
+        outputs={"output_root": OUTPUT_ROOT, "figs_root": FIGS_ROOT},
+    )
