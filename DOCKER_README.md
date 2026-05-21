@@ -278,7 +278,7 @@ docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/01_check_db
 
 ### Paso previo para scripts con ventanas interactivas
 
-El script `scripts/09_analysis_bad_labels.py` abre ventanas interactivas con OpenCV/Qt o
+El script `scripts/10_human_validation_audit.py review` abre ventanas interactivas con OpenCV/Qt o
 Matplotlib, por ejemplo `cv2.imshow()`, `cv2.waitKey()` o `plt.show()`. Docker no tiene
 pantalla propia, asi que la salida grafica debe redirigirse hacia el sistema host antes
 de ejecutar este tipo de scripts.
@@ -296,12 +296,7 @@ Configuracion de XLaunch:
 Comando recomendado desde PowerShell:
 
 ```powershell
-docker run --rm -it `
-  -v "${PWD}:/dataset" `
-  -e DISPLAY=host.docker.internal:0.0 `
-  -e QT_X11_NO_MITSHM=1 `
-  validador-imagen `
-  python scripts/09_analysis_bad_labels.py
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/10_human_validation_audit.py review --annotator-id A1
 ```
 
 Con esto, las ventanas generadas dentro del contenedor se muestran en Windows mediante
@@ -309,24 +304,11 @@ XLaunch.
 
 #### Linux / Ubuntu
 
-Permitir primero que Docker acceda al servidor X local:
+Ejecutar el mismo flujo con el comando base del paso de revision humana:
 
 ```bash
-xhost +local:docker
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/10_human_validation_audit.py review --annotator-id A1
 ```
-
-Luego ejecutar el contenedor compartiendo el socket X11:
-
-```bash
-docker run --rm -it \
-  -v "$(pwd)":/dataset \
-  -v /tmp/.X11-unix:/tmp/.X11-unix \
-  -e DISPLAY=$DISPLAY \
-  validador-imagen python scripts/09_analysis_bad_labels.py
-```
-
-Con esto, las ventanas de OpenCV/Matplotlib se muestran directamente usando el servidor
-grafico de Ubuntu.
 
 ### Antes de ejecutar: compatibilidad Windows/PowerShell
 
@@ -702,6 +684,24 @@ python scripts/db_explore.py --db ./data/analysis_metadata.sqlite ./data/dataset
 python scripts/db_explore.py --cross
 ```
 
+26. Reporte paralelo Kalman de metricas:
+```bash
+# Linux / macOS (Bash/Zsh)
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/25_version_paralelo_kalman_reporte_metricas.py
+
+# Windows (PowerShell)
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/25_version_paralelo_kalman_reporte_metricas.py
+```
+
+27. Reporte paralelo Kalman de metricas batch:
+```bash
+# Linux / macOS (Bash/Zsh)
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/26_version_paralelo_kalman_reporte_metricas_batch.py
+
+# Windows (PowerShell)
+docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/26_version_paralelo_kalman_reporte_metricas_batch.py
+```
+
 ## Validacion humana del auditor
 
 Flujo recomendado para validar el modelo juez con anotadores humanos:
@@ -943,6 +943,8 @@ Notas:
 | `23` | `23_evaluar_coco_distancia.py` | `docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/23_evaluar_coco_distancia.py --scenarios all` |
 | `24` | `24_distance_degradation_r4.py` | `docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/24_distance_degradation_r4.py` |
 | `25` | `25_db_explore.py` | `docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/25_db_explore.py` |
+| `25K` | `25_version_paralelo_kalman_reporte_metricas.py` | `docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/25_version_paralelo_kalman_reporte_metricas.py` |
+| `26` | `26_version_paralelo_kalman_reporte_metricas_batch.py` | `docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/26_version_paralelo_kalman_reporte_metricas_batch.py` |
 
 ### Windows (PowerShell)
 
@@ -974,6 +976,8 @@ Notas:
 | `23` | `23_evaluar_coco_distancia.py` | `docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/23_evaluar_coco_distancia.py --scenarios all` |
 | `24` | `24_distance_degradation_r4.py` | `docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/24_distance_degradation_r4.py` |
 | `25` | `25_db_explore.py` | `docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/25_db_explore.py` |
+| `25K` | `25_version_paralelo_kalman_reporte_metricas.py` | `docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/25_version_paralelo_kalman_reporte_metricas.py` |
+| `26` | `26_version_paralelo_kalman_reporte_metricas_batch.py` | `docker run --rm -v "${PWD}:/dataset" validador-imagen python scripts/26_version_paralelo_kalman_reporte_metricas_batch.py` |
 
 ### Notas sobre los Comandos
 

@@ -148,7 +148,7 @@ Algunos scripts abren ventanas interactivas con OpenCV/Qt o Matplotlib, por ejem
 que antes de ejecutarlos dentro del contenedor hay que redirigir la salida grafica hacia
 el sistema host.
 
-Este paso aplica especialmente a `scripts/09_analysis_bad_labels.py`.
+Este paso aplica especialmente a `scripts/10_human_validation_audit.py review`.
 
 En Windows:
 
@@ -160,27 +160,15 @@ En Windows:
 - Ejecutar el contenedor con `DISPLAY=host.docker.internal:0.0` y `QT_X11_NO_MITSHM=1`.
 
 ```powershell
-docker run --rm -it `
-  -v "${PWD}:/dataset" `
-  -e DISPLAY=host.docker.internal:0.0 `
-  -e QT_X11_NO_MITSHM=1 `
-  validador-imagen `
-  python scripts/09_analysis_bad_labels.py
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/10_human_validation_audit.py review --annotator-id A1
 ```
 
 En Linux/Ubuntu:
 
-- Permitir acceso local de Docker al servidor X con `xhost +local:docker`.
-- Montar el socket X11 `/tmp/.X11-unix` y pasar `DISPLAY=$DISPLAY` al contenedor.
+- Ejecutar el mismo comando base apuntando al script de revision humana.
 
 ```bash
-xhost +local:docker
-
-docker run --rm -it \
-  -v "$(pwd)":/dataset \
-  -v /tmp/.X11-unix:/tmp/.X11-unix \
-  -e DISPLAY=$DISPLAY \
-  validador-imagen python scripts/09_analysis_bad_labels.py
+docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/10_human_validation_audit.py review --annotator-id A1
 ```
 
 ### Core pipeline
@@ -397,6 +385,16 @@ python scripts/db_explore.py --db ./data/analysis_metadata.sqlite ./data/dataset
 
 # Solo análisis cruzado
 python scripts/db_explore.py --cross
+```
+
+26. Reporte paralelo con Kalman de metricas:
+```bash
+python scripts/25_version_paralelo_kalman_reporte_metricas.py
+```
+
+27. Reporte paralelo batch con Kalman de metricas:
+```bash
+python scripts/26_version_paralelo_kalman_reporte_metricas_batch.py
 ```
 
 ## Validacion humana del auditor

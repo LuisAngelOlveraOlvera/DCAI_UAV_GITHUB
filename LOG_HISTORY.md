@@ -1,5 +1,18 @@
 # Log History
 
+## 2026-05-20
+
+### Actualizacion de comandos Docker y nuevos scripts 25/26
+
+- `README.md` y `DOCKER_README.md` actualizados para reemplazar el bloque Docker
+  interactivo anterior por el comando:
+- `docker run --rm -v "$(pwd)":/dataset validador-imagen python scripts/10_human_validation_audit.py review --annotator-id A1`
+- Se agregaron referencias documentadas para:
+- `scripts/25_version_paralelo_kalman_reporte_metricas.py`
+- `scripts/26_version_paralelo_kalman_reporte_metricas_batch.py`
+- `DOCKER_README.md` incluye ahora los comandos `docker run` equivalentes para ambos
+  scripts en Linux/macOS y Windows PowerShell.
+
 ## 2026-05-17
 
 ### Menus seleccionables y registro SQLite para pasos 17-24
